@@ -1,20 +1,10 @@
-'use client';
+"use client";
 
-import {
-  DollarSign,
-  CreditCard,
-  Trash2,
-} from 'lucide-react';
-import { StatCard } from '@/components/dashboard/stat-card';
-import { MonthlySpendingChart } from '@/components/dashboard/monthly-spending-chart';
-import { SpendingByCategoryChart } from '@/components/dashboard/spending-by-category-chart';
-import { RecentTransactions } from '@/components/dashboard/recent-transactions';
-import { Button } from '@/components/ui/button';
-import { useData } from '@/context/data-provider';
-import { NetFlowCard } from '@/components/dashboard/net-flow-card';
-import { TopSpendingCategoriesCard } from '@/components/dashboard/top-spending-categories-card';
-import { UploadDialog } from '@/components/transactions/upload-dialog';
-import type { Transaction, Statement } from '@/lib/types';
+import { Target, Activity, Zap, Trash2, Plus, Search } from "lucide-react";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { RecentTransactions } from "@/components/dashboard/recent-transactions";
+import { Button } from "@/components/ui/button";
+import { useData } from "@/context/data-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,150 +15,136 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Dropzone } from '@/components/transactions/dropzone';
-import { useState } from 'react';
-import { SubscriptionListCard } from '@/components/dashboard/subscription-list-card';
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export default function DashboardPage() {
-  const {
-    transactions,
-    pendingAmount,
-    addTransactions,
-    setPendingAmount,
-    addStatements,
-    clearData,
-  } = useData();
+  const { clearData } = useData();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Dummy data for the layout - We will connect these to Supabase in the next step
+  const leadsFound = 128;
+  const activeMonitors = 4;
+  const availableCredits = 50;
 
   const handleClearData = () => {
     clearData();
     toast({
-      title: 'Data Cleared',
-      description: 'All your transaction data has been removed.',
+      title: "Database Reset",
+      description: "All lead history and monitors have been cleared.",
     });
   };
 
-  const handleNewTransactions = (
-    newTransactions: Transaction[],
-    newStatements: Statement[],
-    totalPending: number
-  ) => {
-    addTransactions(newTransactions);
-    addStatements(newStatements);
-    if (totalPending) {
-      setPendingAmount(prev => prev + totalPending);
-    }
-    setIsLoading(false);
-  };
-
-  const totalSpending = transactions
-    .filter((t) => t.amount < 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalIncome = transactions
-    .filter((t) => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  // SANITIZE CURRENCY: Get raw value, keep only first 3 chars if it's text (e.g. RON), or 1 char if symbol ($)
-  const rawCurrency = transactions[0]?.currency || '$';
-  const currency = rawCurrency.length > 3 ? rawCurrency.substring(0, 3) : rawCurrency;
-
-  if (transactions.length === 0 && !isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
-        <Dropzone onProcessingStart={() => setIsLoading(true)} onNewTransactions={handleNewTransactions} />
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
-        <Dropzone onProcessingStart={() => setIsLoading(true)} onNewTransactions={handleNewTransactions} isProcessing={true} />
-      </div>
-    )
-  }
-
   return (
     <div className="relative min-h-screen space-y-6">
-      {/* Background Gradients */}
+      {/* Background Gradients (The "Liquid Glass" Effect) */}
       <div className="pointer-events-none fixed inset-0 -z-10 h-full w-full bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-blue-400/20 blur-[100px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-purple-400/20 blur-[100px]" />
-        <div className="absolute top-[40%] left-[40%] h-[400px] w-[400px] rounded-full bg-yellow-400/10 blur-[100px]" />
+        <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-yellow-400/10 blur-[100px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-[#ffe600]/10 blur-[100px]" />
       </div>
+
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Market Intelligence
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Monitor triggers and manage your strategic leads.
+          </p>
+        </div>
+
         <div className="flex items-center gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Clear All Data
+                Reset System
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="rounded-3xl border-white/20 backdrop-blur-xl">
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all
-                  your statements and transactions from the application.
+                  This will permanently delete all your active monitors and
+                  leads.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearData}>
-                  Continue
+                <AlertDialogCancel className="rounded-full">
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleClearData}
+                  className="rounded-full !bg-destructive"
+                >
+                  Clear Database
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <UploadDialog onNewTransactions={handleNewTransactions} />
+
+          <Button className="!bg-[#ffe600] !text-black rounded-full shadow-lg hover:shadow-[#ffe600]/20 transition-all font-bold">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Monitor
+          </Button>
         </div>
       </div>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+
+      {/* Stats Grid - Rewritten for Leads */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          title="Total Spending"
-          value={`${currency} ${Math.abs(totalSpending).toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`}
-          description="Last 90 days"
-          icon={DollarSign}
+          title="Total Leads Found"
+          value={leadsFound.toString()}
+          description="Ready for outreach"
+          icon={Target}
         />
         <StatCard
-          title="Total Income"
-          value={`${currency} ${totalIncome.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`}
-          description="Last 90 days"
-          icon={DollarSign}
+          title="Active Monitors"
+          value={activeMonitors.toString()}
+          description="Scanning 24/7"
+          icon={Activity}
         />
-        <NetFlowCard />
         <StatCard
-          title="Total Money Pending"
-          value={`${currency} ${Math.abs(pendingAmount).toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`}
-          description="From statement"
-          icon={CreditCard}
+          title="Available Credits"
+          value={availableCredits.toString()}
+          description="Unlock owner emails"
+          icon={Zap}
         />
       </div>
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <MonthlySpendingChart data={transactions} />
-        <SpendingByCategoryChart data={transactions} />
-      </div>
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <TopSpendingCategoriesCard />
-        <SubscriptionListCard />
-      </div>
-      <div className="grid gap-4">
-        <RecentTransactions />
+
+      {/* Main Content Area */}
+      <div className="grid gap-4 grid-cols-1">
+        {/* We are repurposing the transactions table as the "Leads Feed" */}
+        <div className="rounded-3xl border bg-card/50 backdrop-blur-sm p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-[#ffe600]" />
+              <h2 className="text-xl font-semibold">Latest Trigger Alerts</h2>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full text-xs"
+              >
+                Fresh Blood
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full text-xs"
+              >
+                Pain Points
+              </Button>
+            </div>
+          </div>
+          <RecentTransactions />
+        </div>
       </div>
     </div>
   );

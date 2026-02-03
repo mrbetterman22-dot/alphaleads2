@@ -7,15 +7,14 @@ import { useEffect, useState } from "react";
 import {
   Moon,
   Sun,
-  Upload,
-  PieChart,
   ShieldCheck,
   Zap,
-  FileText,
-  BarChart3,
-  Github,
+  Search,
+  Target,
+  Bell,
   Twitter,
   Linkedin,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,20 +33,8 @@ export default function Home() {
   const isDark = theme === "dark";
 
   return (
-    <div
-      className={cn(
-        "min-h-screen transition-colors flex flex-col",
-        // MODIFICATION: Added a subtle gradient to the background for a better 'glass' effect
-      )}
-    >
-      {/* LIQUID GLASS HEADER (NAVIGATION)
-         - sticky top-6: Floats 24px from the top
-         - rounded-full: Capsule shape
-         - backdrop-blur-md: The "frosted glass" blur
-         - bg-white/40: Semi-transparent background
-         - border-white/20: Subtle, glass-like border
-         - shadow-lg: Sense of depth (floating)
-      */}
+    <div className={cn("min-h-screen transition-colors flex flex-col")}>
+      {/* NAVIGATION BAR */}
       <header
         className={cn(
           "sticky top-6 z-50 mx-auto flex w-[90%] max-w-5xl items-center justify-between px-6 py-3",
@@ -58,6 +45,7 @@ export default function Home() {
         )}
       >
         <div className="flex items-center gap-2 text-xl font-bold tracking-tight">
+          <Target className="text-[#ffe600]" />
           <span>AlphaLeads</span>
         </div>
 
@@ -65,20 +53,20 @@ export default function Home() {
           <Link
             href="/#how-it-works"
             className={cn(
-              "text-sm font-medium transition-colors hover:text-[#ffe600]", // Yellow text on hover
-              isDark ? "text-slate-200" : "text-slate-800", // Base text color
+              "text-sm font-medium transition-colors hover:text-[#ffe600]",
+              isDark ? "text-slate-200" : "text-slate-800",
             )}
           >
-            Learn more
+            How it works
           </Link>
 
           <Button
             asChild
-            variant="ghost" // Re-add ghost variant
+            variant="ghost"
             size="sm"
             className={cn(
-              "font-medium transition-colors hover:text-[#ffe600]", // Remove rounded-full and hover:bg
-              isDark ? "text-slate-200" : "text-slate-800", // Base text color
+              "font-medium transition-colors hover:text-[#ffe600]",
+              isDark ? "text-slate-200" : "text-slate-800",
             )}
           >
             <Link href="/login">Log in</Link>
@@ -103,11 +91,11 @@ export default function Home() {
       </header>
 
       <main className="flex-1 mx-auto flex w-full max-w-5xl flex-col items-center justify-start px-4 py-10 text-center">
-        {/* HERO SECTION (HEADLINE) */}
+        {/* HERO SECTION */}
         <div className="mx-auto max-w-2xl space-y-8 mb-20 mt-16">
           <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-            Turn raw bank statements into{" "}
-            <span className="text-[#ffe600]">clear financial insights.</span>
+            Stop Selling to Cold Databases. Start Closing{" "}
+            <span className="text-[#ffe600]">Trigger-Based Leads.</span>
           </h1>
 
           <p
@@ -116,8 +104,8 @@ export default function Home() {
               isDark ? "text-white" : "text-slate-600",
             )}
           >
-            Stop guessing where your money goes. Upload your statements and get
-            instant analytics.
+            Monitor your target market 24/7. Get alerted the moment a new
+            business opens or a competitor fails a customer.
           </p>
 
           <div className="flex flex-col items-center gap-4">
@@ -125,20 +113,10 @@ export default function Home() {
               <Button
                 asChild
                 size="lg"
-                // WRITE YOUR OWN CODE HERE in the bg-[#...] part:
                 className="!bg-[#fee100] !text-black px-8 text-base h-12 rounded-full font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
               >
-                <Link href="/login">Try it for Free</Link>
+                <Link href="/login">Start Finding Leads →</Link>
               </Button>
-              <a
-                href="#how-it-works"
-                className={cn(
-                  "text-sm font-medium underline-offset-4 hover:underline",
-                  isDark ? "text-white" : "text-slate-900",
-                )}
-              >
-                Learn more
-              </a>
             </div>
             <p
               className={cn(
@@ -146,14 +124,16 @@ export default function Home() {
                 isDark ? "text-white" : "text-slate-400",
               )}
             >
-              *no credit card required
+              *get 50 free credits upon registration
             </p>
           </div>
         </div>
 
         {/* HOW IT WORKS */}
         <div id="how-it-works" className="w-full max-w-4xl mb-24 scroll-mt-32">
-          <h2 className="text-3xl font-bold mb-12">How it works?</h2>
+          <h2 className="text-3xl font-bold mb-12">
+            The Set-and-Forget Engine
+          </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
             {/* Step 1 */}
@@ -166,22 +146,21 @@ export default function Home() {
               )}
             >
               <div className="absolute -top-4 bg-[#ffe600] text-black font-bold py-1 px-4 rounded-full text-sm shadow-md">
-                STEP 1
+                STEP 1: SETUP
               </div>
-
               <div className="mb-6 p-4 rounded-full bg-[#ffe600] text-black shadow-lg">
-                <FileText size={40} />
+                <Search size={40} />
               </div>
-
-              <h3 className="text-xl font-bold mb-2">Upload your document</h3>
+              <h3 className="text-xl font-bold mb-2">Create a Monitor</h3>
               <p
                 className={cn(
                   "text-sm",
                   isDark ? "text-white" : "text-slate-600",
                 )}
               >
-                Drag and drop your bank statement (PDF or CSV). The system will
-                start processing it immediately.
+                Tell us the industry and location (e.g., "Dentists in
+                Budapest"). Our AI wakes up every Monday to scan for
+                opportunities.
               </p>
             </div>
 
@@ -195,57 +174,31 @@ export default function Home() {
               )}
             >
               <div className="absolute -top-4 bg-[#ffe600] text-black font-bold py-1 px-4 rounded-full text-sm shadow-md">
-                STEP 2
+                STEP 2: NOTIFY
               </div>
-
               <div className="mb-6 p-4 rounded-full bg-[#ffe600] text-black shadow-lg">
-                <BarChart3 size={40} />
+                <Bell size={40} />
               </div>
-
-              <h3 className="text-xl font-bold mb-2">View your data</h3>
+              <h3 className="text-xl font-bold mb-2">Get Trigger Alerts</h3>
               <p
                 className={cn(
                   "text-sm",
                   isDark ? "text-white" : "text-slate-600",
                 )}
               >
-                Done! Your transactions are categorized and displayed on clear
-                charts.
+                Receive an email when we find "Fresh Blood" (new businesses) or
+                "Pain Points" (businesses with bad recent reviews).
               </p>
             </div>
           </div>
         </div>
 
         {/* FEATURES */}
-        <h2 className="text-3xl font-bold mb-12">Features</h2>
+        <h2 className="text-3xl font-bold mb-12">Intelligence Features</h2>
         <div
           id="features"
           className="w-full grid grid-cols-1 md:grid-cols-3 gap-8 mb-24 text-left"
         >
-          {/* Feature 1 */}
-          <div
-            className={cn(
-              "p-6 rounded-2xl border hover:scale-105 transition-transform duration-300",
-              isDark
-                ? "bg-neutral-950 border-[#333]"
-                : "bg-slate-50 border-slate-200 shadow-sm",
-            )}
-          >
-            <div className="h-10 w-10 bg-[#ffe600] rounded-lg flex items-center justify-center mb-4 text-black shadow-md">
-              <Upload size={20} />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Easy Import</h3>
-            <p
-              className={cn(
-                "text-sm",
-                isDark ? "text-white" : "text-slate-600",
-              )}
-            >
-              Easily upload your PDF or CSV bank statements.
-            </p>
-          </div>
-
-          {/* Feature 2 */}
           <div
             className={cn(
               "p-6 rounded-2xl border hover:scale-105 transition-transform duration-300",
@@ -257,18 +210,18 @@ export default function Home() {
             <div className="h-10 w-10 bg-[#ffe600] rounded-lg flex items-center justify-center mb-4 text-black shadow-md">
               <Zap size={20} />
             </div>
-            <h3 className="text-xl font-bold mb-2">AI Categorization</h3>
+            <h3 className="text-xl font-bold mb-2">AI Tagging</h3>
             <p
               className={cn(
                 "text-sm",
                 isDark ? "text-white" : "text-slate-600",
               )}
             >
-              AI automatically recognizes and categorizes your expenses.
+              Our GPT-4 logic automatically tags leads as "VAPI" or "Chatbot"
+              opportunities based on customer complaints.
             </p>
           </div>
 
-          {/* Feature 3 */}
           <div
             className={cn(
               "p-6 rounded-2xl border hover:scale-105 transition-transform duration-300",
@@ -278,23 +231,47 @@ export default function Home() {
             )}
           >
             <div className="h-10 w-10 bg-[#ffe600] rounded-lg flex items-center justify-center mb-4 text-black shadow-md">
-              <PieChart size={20} />
+              <Mail size={20} />
             </div>
-            <h3 className="text-xl font-bold mb-2">Visual Analytics</h3>
+            <h3 className="text-xl font-bold mb-2">Email Enrichment</h3>
             <p
               className={cn(
                 "text-sm",
                 isDark ? "text-white" : "text-slate-600",
               )}
             >
-              Visualize your finances with interactive charts.
+              Don't waste time hunting. Unlock verified owner emails with a
+              single click using your monthly credits.
+            </p>
+          </div>
+
+          <div
+            className={cn(
+              "p-6 rounded-2xl border hover:scale-105 transition-transform duration-300",
+              isDark
+                ? "bg-neutral-950 border-[#333]"
+                : "bg-slate-50 border-slate-200 shadow-sm",
+            )}
+          >
+            <div className="h-10 w-10 bg-[#ffe600] rounded-lg flex items-center justify-center mb-4 text-black shadow-md">
+              <Target size={20} />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Strategic Scripts</h3>
+            <p
+              className={cn(
+                "text-sm",
+                isDark ? "text-white" : "text-slate-600",
+              )}
+            >
+              Get a custom AI-generated sales pitch for every lead, referencing
+              their specific pain point or opening date.
             </p>
           </div>
         </div>
 
         {/* SECURITY */}
         <h2 className="text-3xl font-bold mb-12">
-          Your data will always be safe
+          Built for Performance Agencies
         </h2>
         <div
           className={cn(
@@ -304,20 +281,19 @@ export default function Home() {
               : "bg-slate-50 border-slate-200 shadow-sm",
           )}
         >
-          <div className="flex-shrink-0 h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 shadow-sm">
+          <div className="flex-shrink-0 h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-sm">
             <ShieldCheck size={32} />
           </div>
           <div className="text-left">
-            <h3 className="text-xl font-bold mb-2">Bank-Grade Security</h3>
+            <h3 className="text-xl font-bold mb-2">Data Integrity</h3>
             <p
               className={cn(
                 "text-sm leading-relaxed",
                 isDark ? "text-white" : "text-slate-600",
               )}
             >
-              Your data security is paramount. All uploaded files and
-              transactions are encrypted. The system is protected by Google and
-              Supabase industry standards.
+              We use Outscraper and GPT-4o-mini to ensure your lead data is
+              fresh and your tags are accurate. No more 3-year-old CSV files.
             </p>
           </div>
         </div>
@@ -341,7 +317,7 @@ export default function Home() {
                 isDark ? "text-white" : "text-slate-500",
               )}
             >
-              © 2025 AlphaLeads. All rights reserved.
+              © 2026 AlphaLeadsFinder. All rights reserved.
             </p>
           </div>
 
@@ -352,10 +328,10 @@ export default function Home() {
             )}
           >
             <Link href="#" className="hover:underline">
-              Privacy Policy
+              Privacy
             </Link>
             <Link href="#" className="hover:underline">
-              Terms of Service
+              Terms
             </Link>
             <Link href="#" className="hover:underline">
               Contact
@@ -366,18 +342,17 @@ export default function Home() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+              className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
             >
               <Twitter
                 size={18}
                 className={isDark ? "text-white" : "text-slate-600"}
               />
             </Button>
-
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+              className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
             >
               <Linkedin
                 size={18}

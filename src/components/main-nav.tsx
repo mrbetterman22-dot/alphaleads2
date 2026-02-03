@@ -1,23 +1,16 @@
-'use client';
+"use client";
 
 import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   useSidebar,
-} from '@/components/ui/sidebar';
-import {
-  LayoutDashboard,
-  ArrowRightLeft,
-  Settings,
-  Sun,
-  Moon,
-} from 'lucide-react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { Button } from './ui/button';
-import { useEffect, useState } from 'react';
+} from "@/components/ui/sidebar";
+import { LayoutDashboard, Target, Sun, Moon } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -32,14 +25,14 @@ function ThemeToggle() {
     return null;
   }
 
-  if (state === 'collapsed') {
+  if (state === "collapsed") {
     return (
       <SidebarMenuItem>
         <SidebarMenuButton
-          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
           tooltip="Toggle Theme"
         >
-          {theme === 'light' ? <Moon /> : <Sun />}
+          {theme === "light" ? <Moon /> : <Sun />}
           <span className="sr-only">Toggle Theme</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -50,23 +43,25 @@ function ThemeToggle() {
     <SidebarMenuItem className="mb-2 flex justify-center px-3">
       <div className="flex w-full max-w-[85%] gap-2">
         <SidebarMenuButton
-          onClick={() => setTheme('light')}
+          onClick={() => setTheme("light")}
           size="lg"
-          className={`flex-1 rounded-3xl border backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${theme === 'light'
-            ? 'border-[#fee100]/40 bg-[#fee100] text-slate-900 font-bold hover:bg-[#ffd700]'
-            : 'border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-black/70'
-            }`}
+          className={`flex-1 rounded-3xl border backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+            theme === "light"
+              ? "border-[#fee100]/40 bg-[#fee100] text-slate-900 font-bold hover:bg-[#ffd700]"
+              : "border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-black/70"
+          }`}
         >
           <Sun className="h-5 w-5" />
           <span className="text-base font-medium">Light</span>
         </SidebarMenuButton>
         <SidebarMenuButton
-          onClick={() => setTheme('dark')}
+          onClick={() => setTheme("dark")}
           size="lg"
-          className={`flex-1 rounded-3xl border backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${theme === 'dark'
-            ? 'border-[#fee100]/40 bg-[#fee100] text-slate-900 font-bold hover:bg-[#ffd700] hover:text-slate-900'
-            : 'border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-black/70'
-            }`}
+          className={`flex-1 rounded-3xl border backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+            theme === "dark"
+              ? "border-[#fee100]/40 bg-[#fee100] text-slate-900 font-bold hover:bg-[#ffd700] hover:text-slate-900"
+              : "border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-black/70"
+          }`}
         >
           <Moon className="h-5 w-5" />
           <span className="text-base font-medium">Dark</span>
@@ -81,20 +76,20 @@ export function MainNav() {
 
   const menuItems = [
     {
-      href: '/dashboard',
-      label: 'Dashboard',
+      href: "/dashboard",
+      label: "Dashboard",
       icon: LayoutDashboard,
     },
     {
-      href: '/transactions',
-      label: 'Transactions',
-      icon: ArrowRightLeft,
+      href: "/transactions",
+      label: "Lead Feed",
+      icon: Target,
     },
-    {
-      href: '/settings',
-      label: 'Settings',
-      icon: Settings,
-    },
+    // {
+    //   href: "/settings",
+    //   label: "Settings",
+    //   icon: Settings,
+    // },
   ];
 
   return (
