@@ -25,7 +25,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true);
-    
   }, []);
 
   // ÚJ: State checks
@@ -44,8 +43,6 @@ export default function LoginPage() {
       }
     };
     checkSession();
-
-    
   }, []);
 
   const isDark = theme === "dark";
@@ -66,11 +63,8 @@ export default function LoginPage() {
   const normalizeEmail = (e: string) => e.trim().toLowerCase();
 
   const validatePassword = (password: string) => {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    return passwordRegex.test(password);
+    return true; // This allows any password
   };
-
-  
 
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -92,7 +86,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const loginAttempts = JSON.parse(localStorage.getItem('loginAttempts') || '{}');
+    const loginAttempts = JSON.parse(
+      localStorage.getItem("loginAttempts") || "{}",
+    );
     const now = new Date().getTime();
 
     if (loginAttempts[email] && loginAttempts[email].count >= 5) {
@@ -107,7 +103,7 @@ export default function LoginPage() {
       } else {
         // Reset the count after 5 minutes
         delete loginAttempts[email];
-        localStorage.setItem('loginAttempts', JSON.stringify(loginAttempts));
+        localStorage.setItem("loginAttempts", JSON.stringify(loginAttempts));
       }
     }
 
@@ -124,7 +120,7 @@ export default function LoginPage() {
       }
       loginAttempts[email].count++;
       loginAttempts[email].timestamp = now;
-      localStorage.setItem('loginAttempts', JSON.stringify(loginAttempts));
+      localStorage.setItem("loginAttempts", JSON.stringify(loginAttempts));
 
       toast({
         variant: "destructive",
@@ -134,8 +130,8 @@ export default function LoginPage() {
       setIsSubmitting(false);
     } else {
       delete loginAttempts[email];
-      localStorage.setItem('loginAttempts', JSON.stringify(loginAttempts));
-      
+      localStorage.setItem("loginAttempts", JSON.stringify(loginAttempts));
+
       toast({
         title: "Welcome back!",
         description: "Successfully logged in.",
@@ -145,14 +141,9 @@ export default function LoginPage() {
     }
   };
 
-  
-
   const handleSignUp = async () => {
-    if (!validatePassword(password)) {
-      setPasswordError("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
-      return;
-    }
-    
+    setIsSubmitting(true);
+    // The rest of the sign-up logic continues here...
 
     setIsSubmitting(true);
     const { error } = await supabase.auth.signUp({
@@ -170,7 +161,6 @@ export default function LoginPage() {
         description: error.message,
       });
     } else {
-      
       toast({
         title: "Check your email",
         description:
@@ -351,7 +341,9 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
             />
-             {passwordError && <p className="text-red-500 text-xs">{passwordError}</p>}
+            {passwordError && (
+              <p className="text-red-500 text-xs">{passwordError}</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -378,10 +370,7 @@ export default function LoginPage() {
               className="w-full"
               onClick={handleSignUp}
               disabled={isSubmitting}
-              title={
-                
-                  "Create a new account"
-              }
+              title={"Create a new account"}
             >
               Register Now
             </Button>
