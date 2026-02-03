@@ -58,7 +58,7 @@ export default function Home() {
         )}
       >
         <div className="flex items-center gap-2 text-xl font-bold tracking-tight">
-          <span>Penolet Finance</span>
+          <span>AlphaLeads</span>
         </div>
 
         <nav className="flex items-center gap-2 text-sm">
@@ -334,14 +334,14 @@ export default function Home() {
       >
         <div className="mx-auto max-w-5xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col items-center md:items-start gap-2">
-            <div className="text-xl font-semibold">Penolet Finance</div>
+            <div className="text-xl font-semibold">AlphaLeads</div>
             <p
               className={cn(
                 "text-sm",
                 isDark ? "text-white" : "text-slate-500",
               )}
             >
-              © 2025 Penolet Finance. All rights reserved.
+              © 2025 AlphaLeads. All rights reserved.
             </p>
           </div>
 

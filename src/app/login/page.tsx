@@ -272,7 +272,7 @@ export default function LoginPage() {
               isDark ? "text-white" : "text-slate-900",
             )}
           >
-            Penolet Finance
+            AlphaLeads
           </h1>
           <p
             className={cn(

@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Penolet Finance',
+  title: 'AlphaLeads',
   description: 'AI-powered bank statement analysis',
 };
 
