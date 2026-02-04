@@ -66,6 +66,7 @@ export function LeadCard({ lead, onUnlock, canUnlock }: LeadCardProps) {
             <h3 className="font-bold text-lg text-white group-hover:text-[#ffe600] transition-colors">
               {lead.business_name || "Unknown Business"}
             </h3>
+            {/*
             {isPainPoint ? (
               <Badge
                 variant="destructive"
@@ -89,6 +90,7 @@ export function LeadCard({ lead, onUnlock, canUnlock }: LeadCardProps) {
                 Locked
               </Badge>
             )}
+            */}
           </div>
           <div className="flex items-center text-zinc-500 text-sm gap-4">
             <span className="flex items-center gap-1">

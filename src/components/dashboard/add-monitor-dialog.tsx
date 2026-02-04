@@ -64,7 +64,10 @@ export function AddMonitorDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {/* Transparent button that fits inside the dashboard's yellow wrapper */}
-        <Button variant="ghost" className="text-black hover:bg-transparent px-4 py-2 font-bold flex items-center gap-2 shadow-none">
+        <Button
+          variant="ghost"
+          className="text-black hover:bg-transparent px-4 py-2 font-bold flex items-center gap-2 shadow-none"
+        >
           <Plus size={16} />
           Add Monitor
         </Button>
@@ -98,22 +101,20 @@ export function AddMonitorDialog() {
               className="bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-[#ffe600]"
             />
           </div>
-          <DialogFooter>
-            <Button
-              type="submit"
-              disabled={loading || !keyword || !location}
-              className="w-full bg-[#ffe600] text-black"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Add Monitor"
-              )}
-            </Button>
-          </DialogFooter>
+          <Button
+            type="submit"
+            disabled={loading || !keyword || !location}
+            className="w-full bg-[#ffe600] text-black"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Add Monitor"
+            )}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
