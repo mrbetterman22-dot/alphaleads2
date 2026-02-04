@@ -3,15 +3,21 @@
 import { useState } from "react";
 import { useData } from "@/context/data-provider";
 import { LeadCard } from "@/components/dashboard/lead-card";
-import { Coins, FileSpreadsheet, Lock, Unlock } from "lucide-react";
+import {
+  Coins,
+  FileSpreadsheet,
+  Lock,
+  Unlock,
+  Sparkles,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function LeadsPage() {
   const { leads, unlockLead } = useData();
   const [activeTab, setActiveTab] = useState<"fresh" | "pain">("fresh");
 
-  // Hardcoded credits for now (we will connect to DB later)
+  // Hardcoded credits for now
   const credits = 15;
 
   // Filter leads based on tab
@@ -30,39 +36,113 @@ export default function LeadsPage() {
   };
 
   const handleUnlockAll = async () => {
-    // Logic to unlock all visible leads
     alert("Unlock All Feature coming soon!");
   };
 
+  const downloadCSV = () => {
+    const headers = [
+      "business_name",
+      "opportunity_type",
+      "rating",
+      "review_text",
+      "email",
+      "phone",
+      "is_unlocked",
+    ];
+
+    const freshLeads = leads.filter(
+      (l) => l.opportunity_type === "New Business" && l.is_unlocked
+    );
+    const painLeads = leads.filter(
+      (l) => (l.opportunity_type === "Bad Review" || l.rating < 4) && l.is_unlocked
+    );
+
+    const toCSV = (data: typeof leads) =>
+      data
+        .map((lead) =>
+          headers
+            .map((header) => {
+              let value = lead[header as keyof typeof lead] ?? "";
+              if (typeof value === "string") {
+                value = `"${value.replace(/"/g, '""')}"`;
+              }
+              return value;
+            })
+            .join(",")
+        )
+        .join("\n");
+
+    const csvContent = [
+      "# Fresh Opportunities",
+      headers.join(","),
+      toCSV(freshLeads),
+      "\n# Pain Points",
+      headers.join(","),
+      toCSV(painLeads),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    if (link.href) {
+      URL.revokeObjectURL(link.href);
+    }
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "leads.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    // FIX: Added 'pt-14' here to align with the Dashboard's vertical spacing
+    <div className="space-y-6 max-w-6xl mx-auto pt-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center">
           <h2 className="text-3xl font-bold text-white">Leads</h2>
         </div>
-        
-        <div className="flex gap-3 w-full md:w-auto">
+
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          {/* FRESH OPPORTUNITIES BUTTON (Green Glow) */}
           <Button
-            variant={activeTab === "fresh" ? "secondary" : "outline"}
             onClick={() => setActiveTab("fresh")}
-            className="border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+            className={`
+              relative h-10 px-6 rounded-full font-bold transition-all duration-300 border
+              ${
+                activeTab === "fresh"
+                  ? "bg-green-500/10 text-green-400 border-green-500/50 shadow-[0_0_20px_rgba(74,222,128,0.2)]" // Active Green Glow
+                  : "bg-[#0b0a0b] text-zinc-400 border-zinc-800 hover:text-white hover:bg-zinc-900"
+              }
+            `}
           >
+            <Sparkles size={16} className="mr-2" />
             Fresh Opportunities
           </Button>
+
+          {/* PAIN HUNTER BUTTON (Red Glow) */}
           <Button
-             variant={activeTab === "pain" ? "destructive" : "outline"}
             onClick={() => setActiveTab("pain")}
-            className="border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+            className={`
+              relative h-10 px-6 rounded-full font-bold transition-all duration-300 border
+              ${
+                activeTab === "pain"
+                  ? "bg-red-500/10 text-red-500 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]" // Active Red Glow
+                  : "bg-[#0b0a0b] text-zinc-400 border-zinc-800 hover:text-white hover:bg-zinc-900"
+              }
+            `}
           >
+            <AlertTriangle size={16} className="mr-2" />
             Pain Hunter
           </Button>
 
+          {/* CSV Export Button (Standard) */}
           <Button
             variant="outline"
-            className="border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+            className="h-10 px-4 rounded-full border-zinc-800 bg-[#0b0a0b] text-zinc-400 hover:text-white hover:bg-zinc-900 hover:border-zinc-700"
+            onClick={downloadCSV}
           >
-            <FileSpreadsheet size={16} className="mr-2 text-green-500" />
+            <FileSpreadsheet size={16} className="mr-2 text-zinc-500" />
             CSV
           </Button>
         </div>
@@ -80,7 +160,7 @@ export default function LeadsPage() {
         ))}
 
         {filteredLeads.length === 0 && (
-          <div className="col-span-full text-center py-20 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/50">
+          <div className="col-span-full text-center py-20 border border-dashed border-zinc-800 rounded-xl bg-[#0b0a0b]">
             <p className="text-zinc-500">
               No leads found for this category yet.
             </p>

@@ -10,11 +10,11 @@ import {
   ShieldCheck,
   Zap,
   Search,
-  Target,
   Bell,
   Twitter,
   Linkedin,
   Mail,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export default function Home() {
         )}
       >
         <div className="flex items-center gap-2 text-xl font-bold tracking-tight">
-          <Target className="text-[#ffe600]" />
+          {/* Target Logo is removed as requested previously */}
           <span>AlphaLeads</span>
         </div>
 
@@ -60,12 +60,13 @@ export default function Home() {
             How it works
           </Link>
 
+          {/* FIX: Added 'hover:bg-transparent' to remove the black background on hover */}
           <Button
             asChild
             variant="ghost"
             size="sm"
             className={cn(
-              "font-medium transition-colors hover:text-[#ffe600]",
+              "font-medium transition-colors hover:bg-transparent hover:text-[#ffe600]",
               isDark ? "text-slate-200" : "text-slate-800",
             )}
           >
@@ -73,20 +74,6 @@ export default function Home() {
           </Button>
 
           <div className="h-4 w-[1px] bg-border/50 mx-1"></div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full h-8 w-8 hover:bg-transparent hover:text-[#ffe600]"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-          >
-            {isDark ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-            <span className="sr-only">Toggle theme</span>
-          </Button>
         </nav>
       </header>
 

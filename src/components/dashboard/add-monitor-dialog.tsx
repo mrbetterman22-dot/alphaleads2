@@ -23,7 +23,6 @@ export function AddMonitorDialog() {
   const { addMonitor } = useData();
   const { toast } = useToast();
 
-  // Form States
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
 
@@ -33,7 +32,6 @@ export function AddMonitorDialog() {
 
     setLoading(true);
     try {
-      // Send data to Supabase via our Provider
       await addMonitor({
         keyword,
         location,
@@ -45,7 +43,6 @@ export function AddMonitorDialog() {
         description: `Now tracking ${keyword} in ${location}`,
       });
 
-      // Reset and Close
       setKeyword("");
       setLocation("");
       setOpen(false);
@@ -63,10 +60,9 @@ export function AddMonitorDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {/* Transparent button that fits inside the dashboard's yellow wrapper */}
+        {/* FIX: Yellow background is now FORCED here */}
         <Button
-          variant="ghost"
-          className="text-black hover:bg-transparent px-4 py-2 font-bold flex items-center gap-2 shadow-none"
+          className="!bg-[#ffe600] text-black hover:!bg-[#ffe600] font-bold shadow-lg shadow-[#ffe600]/20 transition-all flex items-center gap-2 px-6"
         >
           <Plus size={16} />
           Add Monitor
@@ -101,20 +97,22 @@ export function AddMonitorDialog() {
               className="bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-[#ffe600]"
             />
           </div>
-          <Button
-            type="submit"
-            disabled={loading || !keyword || !location}
-            className="w-full bg-[#ffe600] text-black"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Add Monitor"
-            )}
-          </Button>
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={loading || !keyword || !location}
+              className="w-full !bg-[#ffe600] text-black hover:!bg-[#ffe600] font-bold rounded-3xl"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Add Monitor"
+              )}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

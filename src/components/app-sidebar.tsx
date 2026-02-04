@@ -13,12 +13,12 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -31,105 +31,128 @@ import { usePathname } from "next/navigation";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  // Placeholder credits - in a real app, this would come from your DataProvider
+  // Placeholder credits
   const credits = 15;
 
   return (
-    <Sidebar className="border-r border-zinc-800 bg-black">
-      <SidebarHeader className="p-4">
-        <h1 className="text-xl font-bold tracking-tight flex items-center gap-2 text-white">
-          <div className="w-8 h-8 bg-[#ffe600] rounded-md flex items-center justify-center">
-            <div className="w-3 h-3 bg-black rounded-full" />
+    <Sidebar
+      variant="floating"
+      collapsible="icon"
+      className="m-4 h-[calc(100vh-2rem)] rounded-3xl border border-white/10 bg-[#0b0a0b]/90 shadow-2xl backdrop-blur-2xl [&_[data-sidebar=sidebar]]:!bg-transparent [&_[data-sidebar=sidebar]]:!border-none"
+    >
+      <SidebarHeader className="border-b border-white/5 p-6">
+        <h1 className="flex items-center gap-3 text-xl font-bold tracking-tight text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ffe600] text-black shadow-[0_0_15px_rgba(255,230,0,0.4)]">
+            <div className="h-4 w-4 rounded-full bg-black" />
           </div>
           AlphaLeads
         </h1>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
-        {/* Credit Widget */}
-        <div className="px-2 mb-6 mt-2">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-inner">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                Available Credits
-              </span>
-              <Coins size={14} className="text-[#ffe600]" />
-            </div>
-            <div className="text-2xl font-bold text-white">{credits}</div>
-
+      <SidebarContent className="px-4 py-6">
+        {/* Credit Glass Widget */}
+        <div className="group relative mb-8 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 transition-all duration-300 hover:border-[#ffe600]/30 hover:shadow-[0_0_30px_rgba(255,230,0,0.05)]">
+          <div className="absolute -right-4 -top-4 text-white/5 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
+            <Coins size={80} />
           </div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+              Credits
+            </span>
+            <Coins size={16} className="text-[#ffe600]" />
+          </div>
+          <div className="text-4xl font-bold text-white tracking-tight">
+            {credits}
+          </div>
+          <button className="mt-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#ffe600] transition-colors hover:text-[#ffe600]/80">
+            <span className="border-b border-[#ffe600]"></span>
+          </button>
         </div>
 
-        {/* Navigation Group */}
+        {/* Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-zinc-500">
-            Platform
+          <SidebarGroupLabel className="mb-2 px-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
+            Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard"}
-                  className="hover:bg-zinc-800 text-zinc-400 data-[active=true]:bg-[#ffe600] data-[active=true]:text-black font-medium transition-all"
-                >
-                  <Link href="/dashboard">
-                    <LayoutDashboard />
-                    <span>Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/leads"}
-                  className="hover:bg-zinc-800 text-zinc-400 data-[active=true]:bg-[#ffe600] data-[active=true]:text-black font-medium transition-all"
-                >
-                  <Link href="/leads">
-                    <Users />
-                    <span>Leads</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarMenu className="space-y-2">
+              {[
+                {
+                  label: "Dashboard",
+                  icon: LayoutDashboard,
+                  href: "/dashboard",
+                },
+                { label: "Leads Explorer", icon: Users, href: "/leads" },
+              ].map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.label}
+                      className={`h-12 w-full rounded-2xl transition-all duration-300 ${
+                        isActive
+                          ? "bg-[#ffe600] text-black shadow-[0_0_20px_rgba(255,230,0,0.4)] hover:bg-[#ffe600]"
+                          : "text-zinc-400 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <Link
+                        href={item.href}
+                        className="flex items-center gap-4 px-4"
+                      >
+                        <item.icon
+                          size={20}
+                          className={isActive ? "text-black" : "text-current"}
+                        />
+                        <span className="font-semibold tracking-wide">
+                          {item.label}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="border-t border-white/5 p-6">
+        {/* User Profile Glass */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 w-full p-2 rounded-lg transition-colors border border-transparent hover:bg-zinc-900 hover:border-zinc-800 group">
-              <div className="w-8 h-8 rounded-full bg-[#ffe600] flex items-center justify-center text-xs font-bold text-black">
+            <button className="group flex w-full items-center gap-3 rounded-2xl border border-transparent bg-transparent p-2 transition-all hover:bg-white/5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 font-bold text-white transition-colors group-hover:border-[#ffe600]">
                 CS
               </div>
-              <div className="text-sm text-left flex-1">
-                <p className="text-white font-medium leading-none group-hover:text-[#ffe600] transition-colors">
-                  Csiki
-                </p>
-                <p className="text-zinc-500 text-xs mt-1 truncate w-24">
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Csiki</p>
+                <p className="truncate text-xs text-zinc-500">
                   csiki@example.com
                 </p>
               </div>
-              <ChevronUp size={14} className="text-zinc-500" />
+              <ChevronUp size={16} className="text-zinc-500" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="top"
-            className="w-[--radix-popper-anchor-width] bg-zinc-950 border-zinc-800 text-white"
+            align="center"
+            className="w-56 rounded-2xl border border-zinc-800 bg-zinc-950/90 p-2 text-zinc-200 shadow-2xl backdrop-blur-xl"
           >
-            <DropdownMenuItem
-              asChild
-              className="hover:bg-zinc-900 focus:bg-zinc-900 cursor-pointer"
-            >
-              <Link href="/settings" className="flex items-center gap-2">
-                <Settings size={14} />
-                <span>Settings</span>
+            {/* COMMENTED OUT SETTINGS AS REQUESTED
+              To re-enable, remove the curly braces and comment marks around this block
+            */}
+            {/* <DropdownMenuItem asChild className="rounded-xl focus:bg-white/10 cursor-pointer">
+              <Link href="/settings" className="flex items-center gap-2 py-2.5 px-3">
+                <Settings size={16} />
+                <span className="font-medium">Settings</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-500 hover:bg-red-950/20 focus:bg-red-950/20 focus:text-red-400 cursor-pointer">
-              <LogOut size={14} className="mr-2" />
-              <span>Log out</span>
+            */}
+
+            <DropdownMenuItem className="rounded-xl text-red-500 focus:bg-red-500/10 focus:text-red-500 cursor-pointer py-2.5 px-3">
+              <LogOut size={16} className="mr-2" />
+              <span className="font-medium">Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

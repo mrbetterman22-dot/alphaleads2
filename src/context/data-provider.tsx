@@ -16,6 +16,8 @@ interface DataContextType {
   addMonitor: (monitor: Partial<Monitor>) => Promise<void>;
   unlockLead: (leadId: string) => Promise<void>;
   clearData: () => Promise<void>; // Added to fix your Reset button
+  deleteMonitor: (monitorId: string) => Promise<void>;
+  updateMonitor: (monitorId: string, updates: Partial<Monitor>) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -105,9 +107,49 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setMonitors([]);
   };
 
+  const updateMonitor = async (
+    monitorId: string,
+    updates: Partial<Monitor>,
+  ) => {
+    const { error } = await supabase
+      .from("monitors")
+      .update(updates)
+      .eq("id", monitorId);
+
+    if (!error) {
+      setMonitors((prev) =>
+        prev.map((m) => (m.id === monitorId ? { ...m, ...updates } : m)),
+      );
+    }
+  };
+
+  const deleteMonitor = async (monitorId: string) => {
+    // First, delete leads associated with the monitor
+    await supabase.from("leads").delete().eq("monitor_id", monitorId);
+
+    // Then, delete the monitor itself
+    const { error } = await supabase
+      .from("monitors")
+      .delete()
+      .eq("id", monitorId);
+
+    if (!error) {
+      setMonitors((prev) => prev.filter((m) => m.id !== monitorId));
+      setLeads((prev) => prev.filter((l) => l.monitor_id !== monitorId));
+    }
+  };
+
   return (
     <DataContext.Provider
-      value={{ leads, monitors, addMonitor, unlockLead, clearData }}
+      value={{
+        leads,
+        monitors,
+        addMonitor,
+        unlockLead,
+        clearData,
+        deleteMonitor,
+        updateMonitor,
+      }}
     >
       {children}
     </DataContext.Provider>
