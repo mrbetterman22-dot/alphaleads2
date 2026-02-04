@@ -1,149 +1,141 @@
 "use client";
 
-import { Target, Activity, Zap, Trash2, Plus, Search } from "lucide-react";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { RecentTransactions } from "@/components/dashboard/recent-transactions";
-import { Button } from "@/components/ui/button";
+import { Radio, Plus, MoreHorizontal } from "lucide-react";
 import { useData } from "@/context/data-provider";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { AddMonitorDialog } from "@/components/dashboard/add-monitor-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const { clearData } = useData();
-  const { toast } = useToast();
+  const { leads, monitors } = useData();
 
-  // Dummy data for the layout - We will connect these to Supabase in the next step
-  const leadsFound = 128;
-  const activeMonitors = 4;
-  const availableCredits = 50;
+  // 1. Calculate Live Stats based on your Real Data
+  const totalLeads = leads.length;
+  const freshLeads = leads.filter(
+    (l) => l.opportunity_type === "New Business",
+  ).length;
+  const painPoints = leads.filter(
+    (l) => l.opportunity_type === "Bad Review" || l.rating < 4,
+  ).length;
 
-  const handleClearData = () => {
-    clearData();
-    toast({
-      title: "Database Reset",
-      description: "All lead history and monitors have been cleared.",
-    });
-  };
+  const stats = [
+    {
+      label: "Total Leads Found",
+      value: totalLeads,
+      color: "text-white",
+    },
+    {
+      label: "Fresh Opportunities",
+      value: freshLeads,
+      color: "text-[#ffe600]", // Your Primary Yellow
+    },
+    {
+      label: "Pain Points Detected",
+      value: painPoints,
+      color: "text-red-500",
+    },
+  ];
 
   return (
-    <div className="relative min-h-screen space-y-6">
-      {/* Background Gradients (The "Liquid Glass" Effect) */}
-      <div className="pointer-events-none fixed inset-0 -z-10 h-full w-full bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-yellow-400/10 blur-[100px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-[#ffe600]/10 blur-[100px]" />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Market Intelligence
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Monitor triggers and manage your strategic leads.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Reset System
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-3xl border-white/20 backdrop-blur-xl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all your active monitors and
-                  leads.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-full">
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleClearData}
-                  className="rounded-full !bg-destructive"
-                >
-                  Clear Database
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <Button className="!bg-[#ffe600] !text-black rounded-full shadow-lg hover:shadow-[#ffe600]/20 transition-all font-bold">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Monitor
-          </Button>
+    <div className="space-y-8 max-w-6xl mx-auto">
+      {/* SECTION 1: DASHBOARD STATS */}
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {stats.map((stat, i) => (
+            <div
+              key={i}
+              className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl shadow-sm"
+            >
+              <p className="text-zinc-500 text-sm font-medium uppercase tracking-wider">
+                {stat.label}
+              </p>
+              <p className={`text-4xl font-bold mt-2 ${stat.color}`}>
+                {stat.value}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Stats Grid - Rewritten for Leads */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="Total Leads Found"
-          value={leadsFound.toString()}
-          description="Ready for outreach"
-          icon={Target}
-        />
-        <StatCard
-          title="Active Monitors"
-          value={activeMonitors.toString()}
-          description="Scanning 24/7"
-          icon={Activity}
-        />
-        <StatCard
-          title="Available Credits"
-          value={availableCredits.toString()}
-          description="Unlock owner emails"
-          icon={Zap}
-        />
-      </div>
+      {/* SECTION 2: ACTIVE MONITORS TABLE */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Radio size={20} className="text-[#ffe600]" />
+            Active Monitors
+          </h2>
 
-      {/* Main Content Area */}
-      <div className="grid gap-4 grid-cols-1">
-        {/* We are repurposing the transactions table as the "Leads Feed" */}
-        <div className="rounded-3xl border bg-card/50 backdrop-blur-sm p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-[#ffe600]" />
-              <h2 className="text-xl font-semibold">Latest Trigger Alerts</h2>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full text-xs"
-              >
-                Fresh Blood
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full text-xs"
-              >
-                Pain Points
-              </Button>
-            </div>
+          {/* We wrap the Dialog in your custom button style */}
+          <div className="bg-[#ffe600] rounded-full text-black font-bold shadow-lg shadow-[#ffe600]/20 transition-all hover:bg-[#ffe600]/90">
+            <AddMonitorDialog />
           </div>
-          <RecentTransactions />
+        </div>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 uppercase text-xs tracking-wider">
+              <tr>
+                <th className="px-6 py-4 font-medium">Keyword</th>
+                <th className="px-6 py-4 font-medium">City</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 font-medium">Last Check</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+              {monitors.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-6 py-8 text-center text-zinc-500"
+                  >
+                    No active monitors. Click "Add Monitor" to start tracking.
+                  </td>
+                </tr>
+              ) : (
+                monitors.map((m) => (
+                  <tr
+                    key={m.id}
+                    className="hover:bg-zinc-900/50 transition-colors group"
+                  >
+                    <td className="px-6 py-4 text-white font-medium">
+                      {m.keyword}
+                    </td>
+                    <td className="px-6 py-4 text-zinc-400">{m.location}</td>
+                    <td className="px-6 py-4">
+                      <Badge
+                        variant="outline"
+                        className={`
+                          uppercase text-[10px] tracking-wider border
+                          ${
+                            m.status === "active"
+                              ? "bg-[#ffe600]/10 text-[#ffe600] border-[#ffe600]/20"
+                              : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                          }
+                        `}
+                      >
+                        {m.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-zinc-500">
+                      {/* Placeholder for date - we can add this to DB later */}
+                      {new Date().toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-zinc-600 hover:text-white"
+                      >
+                        <MoreHorizontal size={16} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

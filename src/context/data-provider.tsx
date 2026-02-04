@@ -1,186 +1,113 @@
-'use client';
+"use client";
 
 import {
   createContext,
   useContext,
   useState,
-  type ReactNode,
   useEffect,
-} from 'react';
-import type { Statement, Transaction, Category } from '@/lib/types';
-import { categories as defaultCategories } from '@/lib/data';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useToast } from '@/hooks/use-toast';
-import { PlusCircle } from 'lucide-react';
+  ReactNode,
+} from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Lead, Monitor } from "@/lib/types";
 
 interface DataContextType {
-  statements: Statement[];
-  transactions: Transaction[];
-  categories: Category[];
-  pendingAmount: number;
-  addStatements: (statements: Statement[]) => void;
-  addTransactions: (transactions: Transaction[]) => void;
-  updateTransaction: (transactionId: string, newCategoryId: string) => void;
-  setPendingAmount: (updater: (prev: number) => number) => void;
-  clearData: () => void;
-  getCategory: (categoryId: string) => Category | undefined;
-  addCategory: (name: string) => void;
-  updateCategory: (id: string, name: string) => void;
-  deleteCategory: (id: string) => void;
+  leads: Lead[];
+  monitors: Monitor[];
+  addMonitor: (monitor: Partial<Monitor>) => Promise<void>;
+  unlockLead: (leadId: string) => Promise<void>;
+  clearData: () => Promise<void>; // Added to fix your Reset button
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [statements, setStatements] = useState<Statement[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
-  const [pendingAmount, setPendingAmount] = useState<number>(0);
-  const { toast } = useToast();
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [monitors, setMonitors] = useState<Monitor[]>([]);
   const supabase = createClientComponentClient();
 
-  // 1. Fetch Data on Load
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch Transactions
-      const { data: txData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id);
+      // FIX: Use user_id (with underscore) to match Supabase
+      const { data: monitorData } = await supabase
+        .from("monitors")
+        .select("*")
+        .eq("user_id", user.id);
 
-      if (txData) setTransactions(txData);
+      if (monitorData) {
+        setMonitors(monitorData);
 
-      // Fetch Statements
-      const { data: stmtData } = await supabase
-        .from('statements')
-        .select('*')
-        .eq('user_id', user.id);
+        // FIX: Use monitor_id (with underscore) to match Supabase
+        const { data: leadData } = await supabase
+          .from("leads")
+          .select("*")
+          .in(
+            "monitor_id",
+            monitorData.map((m) => m.id),
+          );
 
-      if (stmtData) setStatements(stmtData);
+        if (leadData) setLeads(leadData);
+      }
     };
 
     fetchData();
-  }, []);
+  }, [supabase]);
 
-  // 2. Add Data (Sync to Supabase)
-  const addStatements = async (newStatements: Statement[]) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("DEBUG: No user found in addStatements. Cannot save.");
-      return;
-    }
-
-    const statementsWithUser = newStatements.map(s => ({ ...s, user_id: user.id }));
-
-    // Update Local State
-    setStatements((prev) => [...prev, ...newStatements]);
-
-    // Update Supabase
-    const { error } = await supabase.from('statements').insert(statementsWithUser);
-    if (error) {
-      console.error('Error saving statements (Full Object):', error);
-      console.error('Error saving statements (Message):', error.message);
-      console.error('Error saving statements (Details):', error.details);
-      console.error('Error saving statements (Hint):', error.hint);
-    }
-  };
-
-  const addTransactions = async (newTransactions: Transaction[]) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("DEBUG: No user found in addTransactions. Cannot save.");
-      return;
-    }
-
-    const transactionsWithUser = newTransactions.map(t => ({ ...t, user_id: user.id }));
-
-    // Update Local State
-    setTransactions((prev) => [...newTransactions, ...prev]);
-
-    // Update Supabase
-    const { error } = await supabase.from('transactions').insert(transactionsWithUser);
-    if (error) console.error('Error saving transactions:', error);
-  };
-
-  // 3. Update Transaction Category
-  const updateTransaction = async (transactionId: string, newCategoryId: string) => {
-    // Local Update
-    setTransactions((prev) =>
-      prev.map((t) =>
-        t.id === transactionId ? { ...t, category: newCategoryId } : t
-      )
-    );
-
-    // Supabase Update
-    const { error } = await supabase
-      .from('transactions')
-      .update({ category: newCategoryId })
-      .eq('id', transactionId);
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save category change.' });
-    }
-  };
-
-  const clearData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+  const addMonitor = async (newMonitor: Partial<Monitor>) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
-    setStatements([]);
-    setTransactions([]);
-    setPendingAmount(0);
-
-    // Delete from Supabase
-    await supabase.from('transactions').delete().eq('user_id', user.id);
-    await supabase.from('statements').delete().eq('user_id', user.id);
+    // FIX: Use user_id here as well
+    const fullMonitor = { ...newMonitor, user_id: user.id, status: "active" };
+    const { error } = await supabase.from("monitors").insert(fullMonitor);
+    if (!error) {
+      // Refresh monitors to get the database-generated ID
+      const { data } = await supabase
+        .from("monitors")
+        .select("*")
+        .eq("user_id", user.id);
+      if (data) setMonitors(data);
+    }
   };
 
-  // Categories logic remains largely local/static for simplicity in this step
-  // You can expand this to a 'categories' table in Supabase later.
-  const getCategory = (categoryId: string) => {
-    return categories.find((c) => c.id === categoryId);
+  const unlockLead = async (leadId: string) => {
+    const { error } = await supabase
+      .from("leads")
+      .update({ is_unlocked: true }) // FIX: use is_unlocked
+      .eq("id", leadId);
+
+    if (!error) {
+      setLeads((prev) =>
+        prev.map((l) => (l.id === leadId ? { ...l, is_unlocked: true } : l)),
+      );
+    }
   };
 
-  const addCategory = (name: string) => {
-    const newCategory: Category = {
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      icon: PlusCircle,
-      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-    };
-    setCategories((prev) => [...prev, newCategory]);
-  };
+  // Added this function so your Reset button works
+  const clearData = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
 
-  const updateCategory = (id: string, name: string) => {
-    setCategories((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, name: name } : c))
-    );
-  };
+    // Delete leads first because they depend on monitors
+    const monitorIds = monitors.map((m) => m.id);
+    await supabase.from("leads").delete().in("monitor_id", monitorIds);
+    await supabase.from("monitors").delete().eq("user_id", user.id);
 
-  const deleteCategory = (id: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
+    setLeads([]);
+    setMonitors([]);
   };
 
   return (
     <DataContext.Provider
-      value={{
-        statements,
-        transactions,
-        categories,
-        pendingAmount,
-        setPendingAmount,
-        addStatements,
-        addTransactions,
-        updateTransaction,
-        clearData,
-        getCategory,
-        addCategory,
-        updateCategory,
-        deleteCategory,
-      }}
+      value={{ leads, monitors, addMonitor, unlockLead, clearData }}
     >
       {children}
     </DataContext.Provider>
@@ -189,8 +116,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
 export function useData() {
   const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
-  }
+  if (!context) throw new Error("useData must be used within a DataProvider");
   return context;
 }

@@ -6,7 +6,7 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Target, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Users, Sun, Moon, Coins } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -21,9 +21,7 @@ function ThemeToggle() {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
+  if (!mounted) return null;
 
   if (state === "collapsed") {
     return (
@@ -31,6 +29,7 @@ function ThemeToggle() {
         <SidebarMenuButton
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
           tooltip="Toggle Theme"
+          className="text-zinc-400 hover:text-[#ffe600] transition-colors"
         >
           {theme === "light" ? <Moon /> : <Sun />}
           <span className="sr-only">Toggle Theme</span>
@@ -40,32 +39,30 @@ function ThemeToggle() {
   }
 
   return (
-    <SidebarMenuItem className="mb-2 flex justify-center px-3">
-      <div className="flex w-full max-w-[85%] gap-2">
-        <SidebarMenuButton
+    <SidebarMenuItem className="mt-auto pt-4 px-2">
+      <div className="flex w-full items-center justify-between rounded-lg border border-zinc-800 bg-black p-1">
+        <button
           onClick={() => setTheme("light")}
-          size="lg"
-          className={`flex-1 rounded-3xl border backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+          className={`flex-1 flex items-center justify-center rounded-md py-1.5 text-xs font-medium transition-all ${
             theme === "light"
-              ? "border-[#fee100]/40 bg-[#fee100] text-slate-900 font-bold hover:bg-[#ffd700]"
-              : "border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-black/70"
+              ? "bg-[#ffe600] text-black shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Sun className="h-5 w-5" />
-          <span className="text-base font-medium">Light</span>
-        </SidebarMenuButton>
-        <SidebarMenuButton
+          <Sun className="mr-1 h-3 w-3" />
+          Light
+        </button>
+        <button
           onClick={() => setTheme("dark")}
-          size="lg"
-          className={`flex-1 rounded-3xl border backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+          className={`flex-1 flex items-center justify-center rounded-md py-1.5 text-xs font-medium transition-all ${
             theme === "dark"
-              ? "border-[#fee100]/40 bg-[#fee100] text-slate-900 font-bold hover:bg-[#ffd700] hover:text-slate-900"
-              : "border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 text-slate-800 dark:text-slate-100 hover:bg-white/70 dark:hover:bg-black/70"
+              ? "bg-zinc-800 text-white shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Moon className="h-5 w-5" />
-          <span className="text-base font-medium">Dark</span>
-        </SidebarMenuButton>
+          <Moon className="mr-1 h-3 w-3" />
+          Dark
+        </button>
       </div>
     </SidebarMenuItem>
   );
@@ -73,6 +70,8 @@ function ThemeToggle() {
 
 export function MainNav() {
   const pathname = usePathname();
+  // In a real app, you would fetch this from useData()
+  const credits = 15;
 
   const menuItems = [
     {
@@ -81,35 +80,59 @@ export function MainNav() {
       icon: LayoutDashboard,
     },
     {
-      href: "/transactions",
-      label: "Lead Feed",
-      icon: Target,
+      href: "/leads",
+      label: "Leads",
+      icon: Users,
     },
-    // {
-    //   href: "/settings",
-    //   label: "Settings",
-    //   icon: Settings,
-    // },
   ];
 
   return (
-    <SidebarMenu className="px-3">
-      {menuItems.map((item) => (
-        <SidebarMenuItem key={item.href} className="mb-2 flex justify-center">
-          <SidebarMenuButton
-            asChild
-            isActive={pathname.startsWith(item.href)}
-            tooltip={item.label}
-            size="lg"
-            className="max-w-[85%] rounded-3xl border border-slate-200 dark:border-white/20 bg-white/60 dark:bg-black/60 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.02] hover:bg-white/70 dark:hover:bg-black/70 active:scale-[0.98] data-[active=true]:bg-white/80 dark:data-[active=true]:bg-black/80 data-[active=true]:font-bold text-slate-800 dark:text-slate-100"
-          >
-            <Link href={item.href}>
-              <item.icon className="h-5 w-5" />
-              <span className="text-base font-medium">{item.label}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+    <SidebarMenu className="px-2 space-y-6">
+      {/* 1. Credit Widget (New Addition) */}
+      <SidebarMenuItem>
+        <div className="mx-1 mt-2 mb-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-inner">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+              Available Credits
+            </span>
+            <Coins size={14} className="text-[#ffe600]" />
+          </div>
+          <div className="text-2xl font-bold text-white">{credits}</div>
+
+        </div>
+      </SidebarMenuItem>
+
+      {/* 2. Navigation Links */}
+      <div className="space-y-1">
+        {menuItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                tooltip={item.label}
+                className={`
+                  w-full rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200
+                  ${
+                    isActive
+                      ? "bg-[#ffe600] text-black shadow-[0_0_15px_rgba(255,230,0,0.15)] hover:bg-[#ffe600]/90"
+                      : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                  }
+                `}
+              >
+                <Link href={item.href} className="flex items-center gap-3">
+                  <item.icon
+                    className={`h-4 w-4 ${isActive ? "text-black" : "text-current"}`}
+                  />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          );
+        })}
+      </div>
+
+      {/* 3. Theme Toggle at Bottom */}
       <ThemeToggle />
     </SidebarMenu>
   );

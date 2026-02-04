@@ -1,35 +1,39 @@
-import {
-  ArrowRightLeft,
-  Car,
-  Clapperboard,
-  Coffee,
-  HeartPulse,
-  Home,
-  Pizza,
-  Receipt,
-  Repeat,
-  ShoppingBasket,
-  Ticket,
-  Wallet,
-} from 'lucide-react';
-import type { Category, Statement, Transaction } from './types';
+/// src/lib/data.ts
+import { Lead } from "./types";
 
-export const categories: Category[] = [
-  { id: 'groceries', name: 'Groceries', icon: ShoppingBasket, color: 'hsl(var(--chart-1))' },
-  { id: 'dining', name: 'Dining', icon: Pizza, color: 'hsl(var(--chart-2))' },
-  { id: 'entertainment', name: 'Entertainment', icon: Clapperboard, color: 'hsl(var(--chart-3))' },
-  { id: 'utilities', name: 'Utilities', icon: Receipt, color: 'hsl(var(--chart-4))' },
-  { id: 'transport', name: 'Transport', icon: Car, color: 'hsl(var(--chart-5))' },
-  { id: 'health', name: 'Health', icon: HeartPulse, color: 'hsl(var(--chart-1))' },
-  { id: 'shopping', name: 'Shopping', icon: Ticket, color: 'hsl(var(--chart-2))' },
-  { id: 'housing', name: 'Housing', icon: Home, color: 'hsl(var(--chart-3))' },
-  { id: 'subscriptions', name: 'Subscriptions', icon: Repeat, color: 'hsl(var(--chart-4))' },
-  { id: 'coffee', name: 'Coffee', icon: Coffee, color: 'hsl(var(--chart-5))' },
-  { id: 'transfer', name: 'Transfer', icon: ArrowRightLeft, color: 'hsl(var(--muted-foreground))' },
-  { id: 'uncategorized', name: 'Uncategorized', icon: Wallet, color: 'hsl(var(--muted-foreground))' },
-  { id: 'income', name: 'Income', icon: Wallet, color: 'hsl(var(--green-500))' },
-];
+export function identifyLead(
+  incomingBusiness: any,
+  history: Lead[],
+): Lead | null {
+  const exists = history.find((h) => h.place_id === incomingBusiness.place_id);
 
-export const transactions: Transaction[] = [];
+  if (!exists) {
+    return {
+      id: crypto.randomUUID(),
+      monitor_id: incomingBusiness.monitor_id, // Match DB
+      place_id: incomingBusiness.place_id, // Match DB
+      business_name: incomingBusiness.name, // Match DB
+      opportunity_type: "New Business", // Match DB
+      is_unlocked: false, // Match DB
+      created_at: new Date().toISOString(),
+    };
+  }
 
-export const statements: Statement[] = [];
+  // Pain Point Logic
+  if (
+    incomingBusiness.rating < 3 &&
+    incomingBusiness.reviews_count > (exists as any).reviews_count
+  ) {
+    return {
+      id: crypto.randomUUID(),
+      monitor_id: incomingBusiness.monitor_id,
+      place_id: incomingBusiness.place_id,
+      business_name: incomingBusiness.name,
+      opportunity_type: "Bad Review",
+      is_unlocked: false,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  return null;
+}

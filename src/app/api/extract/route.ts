@@ -1,19 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { extractTransactions } from '@/ai/flows/extract-transactions';
+// src/app/api/extract/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { identifyLead } from "@/lib/data";
 
 export async function POST(req: NextRequest) {
   try {
-    const { pdfDataUri, categories } = await req.json();
+    const data = await req.json();
 
-    if (!pdfDataUri || !categories) {
-      return NextResponse.json({ message: 'Missing pdfDataUri or categories' }, { status: 400 });
-    }
+    // 1. Outscraper sends the 'results' here
+    const results = data.results || [];
 
-    const output = await extractTransactions({ pdfDataUri, categories });
+    // 2. We would normally fetch the "History" from your Database here
+    const history: any[] = [];
 
-    return NextResponse.json(output);
+    // 3. Compare and find leads
+    const newLeads = results
+      .map((bus: any) => identifyLead(bus, history))
+      .filter(Boolean);
+
+    // 4. Send back a success message
+    return NextResponse.json({
+      message: "Data processed successfully",
+      leadsFound: newLeads.length,
+    });
   } catch (error: any) {
-    console.error('Error in /api/extract:', error);
-    return NextResponse.json({ message: error.message || 'An unexpected error occurred' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to process data" },
+      { status: 500 },
+    );
   }
 }

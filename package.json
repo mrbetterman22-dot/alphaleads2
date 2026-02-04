@@ -1,18 +1,15 @@
 {
-  "name": "nextn",
+  "name": "penolet-finance-alphaleads",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev:next": "next dev --turbopack -p 9002",
-    "dev:all": "npm-run-all -p genkit:dev dev:next",
-    "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
-    "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "cross-env NODE_ENV=production next build",
+    "dev": "next dev -p 9002",
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-avatar": "^1.1.3",
     "@genkit-ai/google-genai": "^1.20.0",
     "@genkit-ai/next": "^1.20.0",
     "@google/generative-ai": "^0.24.1",
