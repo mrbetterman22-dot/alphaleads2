@@ -28,11 +28,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+// FIX: Import the data provider hook
+import { useData } from "@/context/data-provider";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  // Placeholder credits
-  const credits = 15;
+  // FIX: Get real credits and email from context
+  const { userCredits, userEmail } = useData();
+  const credits = userCredits ?? 0;
+
+  // LOGIC: Get first 2 letters of email for the icon
+  const displayEmail = userEmail || "user@alphaleads.com";
+  const userInitials = displayEmail.substring(0, 2).toUpperCase();
 
   return (
     <Sidebar
@@ -122,15 +129,18 @@ export function AppSidebar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="group flex w-full items-center gap-3 rounded-2xl border border-transparent bg-transparent p-2 transition-all hover:bg-white/5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 font-bold text-white transition-colors group-hover:border-[#ffe600]">
-                CS
+              {/* FIX: Icon uses first 2 letters of email */}
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 font-bold text-white transition-colors group-hover:border-[#ffe600]">
+                {userInitials}
               </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-white">Csiki</p>
-                <p className="truncate text-xs text-zinc-500">
-                  csiki@example.com
+
+              {/* FIX: Display ONLY the email address */}
+              <div className="flex-1 text-left min-w-0">
+                <p className="truncate text-sm font-bold text-white">
+                  {displayEmail}
                 </p>
               </div>
+
               <ChevronUp size={16} className="text-zinc-500" />
             </button>
           </DropdownMenuTrigger>
@@ -139,17 +149,6 @@ export function AppSidebar() {
             align="center"
             className="w-56 rounded-2xl border border-zinc-800 bg-zinc-950/90 p-2 text-zinc-200 shadow-2xl backdrop-blur-xl"
           >
-            {/* COMMENTED OUT SETTINGS AS REQUESTED
-              To re-enable, remove the curly braces and comment marks around this block
-            */}
-            {/* <DropdownMenuItem asChild className="rounded-xl focus:bg-white/10 cursor-pointer">
-              <Link href="/settings" className="flex items-center gap-2 py-2.5 px-3">
-                <Settings size={16} />
-                <span className="font-medium">Settings</span>
-              </Link>
-            </DropdownMenuItem>
-            */}
-
             <DropdownMenuItem className="rounded-xl text-red-500 focus:bg-red-500/10 focus:text-red-500 cursor-pointer py-2.5 px-3">
               <LogOut size={16} className="mr-2" />
               <span className="font-medium">Log out</span>

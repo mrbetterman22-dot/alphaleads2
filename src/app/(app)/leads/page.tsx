@@ -14,10 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function LeadsPage() {
-  const { leads, unlockLead, userCredits } = useData(); // Destructure userCredits
+  // FIX: Destructure userCredits from context
+  const { leads, unlockLead, userCredits } = useData();
   const [activeTab, setActiveTab] = useState<"fresh" | "pain">("fresh");
 
-  // Use userCredits from context
+  // FIX: Use real credits instead of hardcoded 15
   const credits = userCredits;
 
   // Filter leads based on tab
@@ -57,7 +58,7 @@ export default function LeadsPage() {
       (l) => (l.opportunity_type === "Bad Review" || l.rating < 4) && l.is_unlocked
     );
 
-    const toCSV = (data: typeof leads) =>
+    const toCSV = (data: Lead[]) => // Changed type from typeof leads to Lead[]
       data
         .map((lead) =>
           headers
@@ -95,8 +96,7 @@ export default function LeadsPage() {
   };
 
   return (
-    // FIX: Added 'pt-14' here to align with the Dashboard's vertical spacing
-    <div className="space-y-6 max-w-6xl mx-auto pt-10">
+    <div className="space-y-6 max-w-6xl mx-auto pt-14">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center">
@@ -104,14 +104,14 @@ export default function LeadsPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          {/* FRESH OPPORTUNITIES BUTTON (Green Glow) */}
+          {/* FRESH OPPORTUNITIES BUTTON */}
           <Button
             onClick={() => setActiveTab("fresh")}
             className={`
               relative h-10 px-6 rounded-full font-bold transition-all duration-300 border
               ${
                 activeTab === "fresh"
-                  ? "bg-green-500/10 text-green-400 border-green-500/50 shadow-[0_0_20px_rgba(74,222,128,0.2)]" // Active Green Glow
+                  ? "bg-green-500/10 text-green-400 border-green-500/50 shadow-[0_0_20px_rgba(74,222,128,0.2)]"
                   : "bg-[#0b0a0b] text-zinc-400 border-zinc-800 hover:text-white hover:bg-zinc-900"
               }
             `}
@@ -120,14 +120,14 @@ export default function LeadsPage() {
             Fresh Opportunities
           </Button>
 
-          {/* PAIN HUNTER BUTTON (Red Glow) */}
+          {/* PAIN HUNTER BUTTON */}
           <Button
             onClick={() => setActiveTab("pain")}
             className={`
               relative h-10 px-6 rounded-full font-bold transition-all duration-300 border
               ${
                 activeTab === "pain"
-                  ? "bg-red-500/10 text-red-500 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]" // Active Red Glow
+                  ? "bg-red-500/10 text-red-500 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
                   : "bg-[#0b0a0b] text-zinc-400 border-zinc-800 hover:text-white hover:bg-zinc-900"
               }
             `}
@@ -136,7 +136,7 @@ export default function LeadsPage() {
             Pain Hunter
           </Button>
 
-          {/* CSV Export Button (Standard) */}
+          {/* CSV Export Button */}
           <Button
             variant="outline"
             className="h-10 px-4 rounded-full border-zinc-800 bg-[#0b0a0b] text-zinc-400 hover:text-white hover:bg-zinc-900 hover:border-zinc-700"
