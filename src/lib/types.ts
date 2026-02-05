@@ -1,33 +1,44 @@
 // src/lib/types.ts
-
 export interface User {
   id: string;
   email: string;
-  credits: number; // New: Track user balance
+  credits: number;
 }
 
 export interface Monitor {
   id: string;
   user_id: string;
   keyword: string;
-  location: string; // We use 'location' instead of 'city' to match your database
+  location: string;
   status: "active" | "paused";
   last_check_date?: string;
 }
 
-export type LeadType = "new_business" | "pain_point";
-
 export interface Lead {
   id: string;
-  monitor_id: string;
+  monitor_id?: string;
   business_name: string;
-  place_id: string; // Keeps the Google Maps ID
+  place_id: string;
   rating: number;
-  review_text?: string; // New: For the "Pain Hunter"
-  review_date?: string;
+  review_count: number;
+
+  // Contact Info
   email?: string;
   phone?: string;
-  opportunity_type: string; // Maps to 'type' in your logic (New Business/Pain Point)
-  ai_pitch?: string; // New: For the AI generated message
+  website?: string;
+  full_name?: string;
+
+  // The "Money Metrics"
+  reviews_per_score_1?: number;
+  reviews_per_score_5?: number; // NEW
+  website_generator?: string; // NEW
+  website_has_fb_pixel?: boolean; // NEW
+  is_verified?: boolean;
+
+  // System Fields
+  bucket_category?: string;
+  bucket_details?: string;
   is_unlocked: boolean;
+  business_status?: string;
+  city?: string;
 }
