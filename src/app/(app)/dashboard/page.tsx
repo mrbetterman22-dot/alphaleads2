@@ -5,10 +5,21 @@ import { useData } from "@/context/data-provider";
 import { AddMonitorDialog } from "@/components/dashboard/add-monitor-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function DashboardPage() {
   // FIX: Destructure 'removeMonitor' so we can use it
-  const { leads, monitors, removeMonitor } = useData();
+  const { leads, monitors, deleteMonitor } = useData();
 
   const totalLeads = leads.length;
   const freshLeads = leads.filter(
@@ -131,16 +142,37 @@ export default function DashboardPage() {
                       {new Date(m.last_checked).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {/* FIX: Replaced menu with a direct Delete button for easy testing */}
-                      <Button
-                        onClick={() => removeMonitor(m.id)}
-                        variant="ghost"
-                        size="icon"
-                        className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                        title="Delete Monitor"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            title="Delete Monitor"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Are you absolutely sure?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently
+                              delete your monitor and all associated leads.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMonitor(m.id)}
+                            >
+                              Continue
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </td>
                   </tr>
                 ))

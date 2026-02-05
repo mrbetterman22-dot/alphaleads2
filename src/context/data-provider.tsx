@@ -13,7 +13,8 @@ import type { Lead, Monitor } from "@/lib/types";
 interface DataContextType {
   leads: Lead[];
   monitors: Monitor[];
-  addMonitor: (monitor: Partial<Monitor>) => Promise<void>;
+  userCredits: number; // Added to DataContextType
+  addMonitor: (monitor: Partial<Monitor>) => Promise<boolean>; // Changed return type to Promise<boolean>
   unlockLead: (leadId: string) => Promise<void>;
   clearData: () => Promise<void>; // Added to fix your Reset button
   deleteMonitor: (monitorId: string) => Promise<void>;
@@ -28,6 +29,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [userCredits, setUserCredits] = useState(0); // Added userCredits state
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -35,7 +37,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log("No user found in fetchData. Skipping credit fetch.");
+        return;
+      }
+      console.log("User found:", user);
+
+      // Fetch user credits
+      const { data: userData, error: userError } = await supabase
+        .from("users") // Assuming 'users' is your user table
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+
+      if (userError) {
+        console.error("Error fetching user credits:", userError);
+      } else if (userData) {
+        console.log("Fetched user data:", userData);
+        setUserCredits(userData.credits);
+      } else {
+        console.log("No user data found (userData is null). Setting credits to 0.");
+        setUserCredits(0); // Ensure credits are 0 if no user data is found
+      }
 
       // FIX: Use user_id (with underscore) to match Supabase
       const { data: monitorData } = await supabase
@@ -62,11 +85,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [supabase]);
 
-  const addMonitor = async (newMonitor: Partial<Monitor>) => {
+  const addMonitor = async (newMonitor: Partial<Monitor>): Promise<boolean> => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) return false;
 
     // 1. Find and deactivate any existing active monitors for this location
     const { data: existingMonitors, error: fetchError } = await supabase
@@ -77,10 +100,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .eq("status", "active");
 
     if (fetchError) {
-      console.error("Error fetching existing monitors:", fetchError);
-      return;
+      return false; // Indicate failure
     }
 
+    let deactivatedExistingMonitor = false;
     if (existingMonitors && existingMonitors.length > 0) {
       const { error: updateError } = await supabase
         .from("monitors")
@@ -90,9 +113,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           existingMonitors.map((m) => m.id),
         );
       if (updateError) {
-        console.error("Error deactivating existing monitors:", updateError);
-        return;
+        return false; // Indicate failure
       }
+      deactivatedExistingMonitor = true;
     }
 
     // 2. Add the new monitor as active
@@ -106,21 +129,51 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .select("*")
         .eq("user_id", user.id);
       if (data) setMonitors(data);
+      return deactivatedExistingMonitor; // Return true if an existing monitor was deactivated
     } else {
-      console.error("Error adding new monitor:", error);
+      // Indicate failure
+      return false;
     }
   };
 
   const unlockLead = async (leadId: string) => {
-    const { error } = await supabase
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // 1. Decrement user credits in the 'users' table
+    const newCredits = userCredits - 1;
+    const { error: creditUpdateError } = await supabase
+      .from("users")
+      .update({ credits: newCredits })
+      .eq("id", user.id);
+
+    if (creditUpdateError) {
+      console.error("Error updating user credits:", creditUpdateError);
+      return;
+    }
+
+    // 2. Unlock the lead in the 'leads' table
+    const { error: leadUpdateError } = await supabase
       .from("leads")
       .update({ is_unlocked: true }) // FIX: use is_unlocked
       .eq("id", leadId);
 
-    if (!error) {
+    if (!leadUpdateError) {
+      // 3. Update local state
       setLeads((prev) =>
         prev.map((l) => (l.id === leadId ? { ...l, is_unlocked: true } : l)),
       );
+      setUserCredits(newCredits); // Update local credits state
+    } else {
+      console.error("Error unlocking lead:", leadUpdateError);
+      // Revert credits if lead unlock fails (optional, but good for data consistency)
+      await supabase
+        .from("users")
+        .update({ credits: userCredits })
+        .eq("id", user.id);
+      setUserCredits(userCredits);
     }
   };
 
@@ -226,6 +279,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       value={{
         leads,
         monitors,
+        userCredits, // Provided userCredits
         addMonitor,
         unlockLead,
         clearData,

@@ -130,8 +130,8 @@ export function LeadCard({ lead, onUnlock, canUnlock }: LeadCardProps) {
                   font-bold rounded-full shadow-xl transition-all
                   ${
                     canUnlock
-                      ? "bg-[#ffe600] text-black hover:bg-[#ffe600]/80 hover:scale-105"
-                      : "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                      ? "!bg-[#ffe600] text-black shadow-lg shadow-[#ffe600]/20 hover:!bg-[#ffe600]/90 hover:scale-105"
+                      : "!bg-[#ffe600]/30 text-black border border-[#ffe600]/20 hover:!bg-[#ffe600]/50" // Dimmer yellow when disabled with hover
                   }
                 `}
               >

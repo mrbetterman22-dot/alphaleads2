@@ -14,11 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function LeadsPage() {
-  const { leads, unlockLead } = useData();
+  const { leads, unlockLead, userCredits } = useData(); // Destructure userCredits
   const [activeTab, setActiveTab] = useState<"fresh" | "pain">("fresh");
 
-  // Hardcoded credits for now
-  const credits = 15;
+  // Use userCredits from context
+  const credits = userCredits;
 
   // Filter leads based on tab
   const filteredLeads = leads.filter((l) =>
@@ -181,8 +181,8 @@ export default function LeadsPage() {
                   h-12 px-8 rounded-full font-bold text-base shadow-xl transition-all
                   ${
                     credits >= lockedLeadsCount
-                      ? "bg-white text-black hover:bg-zinc-200"
-                      : "bg-zinc-800 text-zinc-500"
+                      ? "!bg-[#ffe600] text-black hover:!bg-[#ffe600]/90"
+                      : "!bg-[#ffe600]/30 text-black border border-[#ffe600]/20 hover:!bg-[#ffe600]/50"
                   }
               `}
           >
