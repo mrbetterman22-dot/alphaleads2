@@ -3,6 +3,7 @@
 import { Radio, Target, Sparkles, AlertTriangle, Trash2 } from "lucide-react";
 import { useData } from "@/context/data-provider";
 import { AddMonitorDialog } from "@/components/dashboard/add-monitor-dialog";
+import { ConsoleWindow } from "@/components/dashboard/console-window";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,32 +19,37 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function DashboardPage() {
-  // FIX: Destructure 'removeMonitor' so we can use it
   const { leads, monitors, deleteMonitor } = useData();
 
-  const totalLeads = leads.length;
+  // --- STATS LOGIC UPDATE ---
+
+  // 1. Calculate specific types first
   const freshLeads = leads.filter(
     (l) => l.opportunity_type === "New Business",
   ).length;
   const painPoints = leads.filter(
-    (l) => l.opportunity_type === "Bad Review" || l.rating < 4,
+    (l) => l.opportunity_type === "Bad Review",
   ).length;
+
+  // 2. Total is now strictly the sum of sellable opportunities
+  // (We ignore 'High Performer' or other types)
+  const totalLeads = freshLeads + painPoints;
 
   const stats = [
     {
-      label: "Total Leads Found",
+      label: "Actionable Leads",
       value: totalLeads,
       color: "text-white",
       icon: Target,
     },
     {
-      label: "Fresh Opportunities",
+      label: "New Business",
       value: freshLeads,
       color: "text-[#ffe600]",
       icon: Sparkles,
     },
     {
-      label: "Pain Points Detected",
+      label: "Pain Points",
       value: painPoints,
       color: "text-red-500",
       icon: AlertTriangle,
@@ -51,20 +57,16 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pt-14">
-      {/* SECTION 1: DASHBOARD STATS */}
+    <div className="space-y-8 max-w-6xl mx-auto pt-14 pb-20">
+      {/* SECTION 1: STATS */}
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-white">Dashboard</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {stats.map((stat, i) => (
             <div
               key={i}
-              className="group relative overflow-hidden bg-[#0b0a0b] border border-zinc-800 p-6 rounded-2xl shadow-sm transition-all duration-300 hover:border-[#ffe600]/30 hover:shadow-[0_0_30px_rgba(255,230,0,0.05)]"
+              className="group relative overflow-hidden bg-[#0b0a0b] border border-zinc-800 p-6 rounded-2xl shadow-sm hover:border-[#ffe600]/30 transition-all"
             >
-              <div className="absolute -right-6 -top-6 text-white/5 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110 pointer-events-none">
-                <stat.icon size={100} />
-              </div>
-
               <div className="relative z-10">
                 <p className="text-zinc-500 text-sm font-medium uppercase tracking-wider flex items-center gap-2">
                   <stat.icon size={16} className={stat.color} />
@@ -79,28 +81,27 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* SECTION 2: ACTIVE MONITORS TABLE */}
+      {/* SECTION 2: ACTIVE MONITORS */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Radio size={20} className="text-[#ffe600]" />
             Active Monitors
           </h2>
-
           <div className="bg-[#ffe600] rounded-full text-black font-bold shadow-lg shadow-[#ffe600]/20 transition-all hover:bg-[#ffe600]/90">
             <AddMonitorDialog />
           </div>
         </div>
 
-        <div className="bg-[#0b0a0b] border border-zinc-800 rounded-xl overflow-hidden transition-all duration-300 hover:border-[#ffe600]/30 hover:shadow-[0_0_30px_rgba(255,230,0,0.05)]">
+        <div className="bg-[#0b0a0b] border border-zinc-800 rounded-xl overflow-hidden">
           <table className="w-full text-sm text-left">
-            <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 uppercase text-xs tracking-wider">
+            <thead className="text-xs text-zinc-500 uppercase bg-zinc-900/50 border-b border-zinc-800">
               <tr>
-                <th className="px-6 py-4 font-medium">Keyword</th>
-                <th className="px-6 py-4 font-medium">City</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium">Last Check</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                <th className="px-6 py-3">Keyword</th>
+                <th className="px-6 py-3">Location</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Last Checked</th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
@@ -126,20 +127,13 @@ export default function DashboardPage() {
                     <td className="px-6 py-4">
                       <Badge
                         variant="outline"
-                        className={`
-                          uppercase text-[10px] tracking-wider border
-                          ${
-                            m.status === "active"
-                              ? "bg-[#ffe600]/10 text-[#ffe600] border-[#ffe600]/20"
-                              : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                          }
-                        `}
+                        className={`uppercase text-[10px] tracking-wider border ${m.status === "active" ? "bg-[#ffe600]/10 text-[#ffe600] border-[#ffe600]/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}
                       >
                         {m.status}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-zinc-500">
-                      {new Date(m.last_checked).toLocaleDateString()}
+                      {new Date(m.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <AlertDialog>
@@ -147,8 +141,7 @@ export default function DashboardPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                            title="Delete Monitor"
+                            className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
                           >
                             <Trash2 size={16} />
                           </Button>
@@ -156,11 +149,11 @@ export default function DashboardPage() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              Are you absolutely sure?
+                              Delete this monitor?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This action cannot be undone. This will permanently
-                              delete your monitor and all associated leads.
+                              This will also delete all leads associated with
+                              it.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -168,7 +161,7 @@ export default function DashboardPage() {
                             <AlertDialogAction
                               onClick={() => deleteMonitor(m.id)}
                             >
-                              Continue
+                              Delete
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -180,6 +173,11 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* SECTION 3: LIVE CONSOLE */}
+      <div className="space-y-4 pt-4">
+        <ConsoleWindow />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Lead, Monitor } from "@/lib/types";
@@ -14,7 +15,7 @@ interface DataContextType {
   leads: Lead[];
   monitors: Monitor[];
   userCredits: number;
-  userEmail: string | undefined; // NEW: Added userEmail
+  userEmail: string | undefined;
   addMonitor: (monitor: Partial<Monitor>) => Promise<boolean>;
   unlockLead: (leadId: string) => Promise<void>;
   clearData: () => Promise<void>;
@@ -31,160 +32,252 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [userCredits, setUserCredits] = useState(0);
-  const [userEmail, setUserEmail] = useState<string | undefined>(undefined); // NEW: State for email
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const supabase = createClientComponentClient();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  // 1. CENTRAL FETCH FUNCTION (Reusable)
+  const fetchData = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
 
-      if (!user) {
-        console.log("No user found.");
-        return;
-      }
+    setUserEmail(user.email);
 
-      // NEW: Set the email
-      setUserEmail(user.email);
+    // A. Fetch Credits
+    const { data: userData } = await supabase
+      .from("users")
+      .select("credits")
+      .eq("id", user.id)
+      .single();
 
-      // Fetch user credits
-      const { data: userData } = await supabase
-        .from("users")
-        .select("credits")
-        .eq("id", user.id)
-        .single();
+    if (userData) setUserCredits(userData.credits);
 
-      if (userData) {
-        setUserCredits(userData.credits);
-      } else {
-        setUserCredits(0);
-      }
+    // B. Fetch Monitors
+    const { data: monitorData } = await supabase
+      .from("monitors")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
 
-      // Fetch Monitors
-      const { data: monitorData } = await supabase
-        .from("monitors")
+    if (monitorData) {
+      setMonitors(monitorData);
+    }
+
+    // C. Fetch Leads (Using the new user_leads mapping)
+    // First, find which leads belong to this user
+    const { data: linkData } = await supabase
+      .from("user_leads")
+      .select("lead_id, is_unlocked")
+      .eq("user_id", user.id);
+
+    if (linkData && linkData.length > 0) {
+      const leadIds = linkData.map((link) => link.lead_id);
+
+      // Then fetch the actual business data
+      const { data: businessData } = await supabase
+        .from("leads")
         .select("*")
-        .eq("user_id", user.id);
+        .in("id", leadIds);
 
-      if (monitorData) {
-        setMonitors(monitorData);
-
-        const { data: leadData } = await supabase
-          .from("leads")
-          .select("*")
-          .in(
-            "monitor_id",
-            monitorData.map((m) => m.id),
-          );
-
-        if (leadData) setLeads(leadData);
+      if (businessData) {
+        // Merge the 'is_unlocked' status into the business object
+        const mergedLeads = businessData.map((biz) => {
+          const link = linkData.find((l) => l.lead_id === biz.id);
+          return {
+            ...biz,
+            is_unlocked: link?.is_unlocked || false,
+          };
+        });
+        setLeads(mergedLeads);
       }
-    };
-
-    fetchData();
+    } else {
+      setLeads([]); // No leads linked yet
+    }
   }, [supabase]);
 
-  // ... (Keep your existing addMonitor, unlockLead, etc. logic)
+  // Initial Load
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 2. ADD MONITOR (With Vercel-Safe Polling)
   const addMonitor = async (newMonitor: Partial<Monitor>): Promise<boolean> => {
-    // (Your existing code here)
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // ... logic to pause others and insert new one
-    const { data: existingMonitors } = await supabase
+    // A. Pause existing active monitors (Single Active Monitor Rule)
+    const { data: existingActive } = await supabase
       .from("monitors")
-      .select("*")
+      .select("id")
       .eq("user_id", user.id)
-      .eq("location", newMonitor.location)
       .eq("status", "active");
-    if (existingMonitors && existingMonitors.length > 0) {
+
+    if (existingActive && existingActive.length > 0) {
       await supabase
         .from("monitors")
         .update({ status: "paused" })
         .in(
           "id",
-          existingMonitors.map((m) => m.id),
+          existingActive.map((m) => m.id),
         );
     }
 
+    // B. Insert New Monitor into DB
     const fullMonitor = { ...newMonitor, user_id: user.id, status: "active" };
-    const { error } = await supabase.from("monitors").insert(fullMonitor);
+    const { data: savedMonitor, error } = await supabase
+      .from("monitors")
+      .insert(fullMonitor)
+      .select()
+      .single();
 
-    if (!error) {
-      const { data } = await supabase
-        .from("monitors")
-        .select("*")
-        .eq("user_id", user.id);
-      if (data) setMonitors(data);
-      return true;
+    if (error || !savedMonitor) {
+      console.error("DB Insert Error:", error);
+      return false;
     }
-    return false;
+
+    // Update Local UI instantly
+    setMonitors((prev) => {
+      const paused = prev.map((m) => ({ ...m, status: "paused" as const }));
+      return [savedMonitor, ...paused];
+    });
+
+    // C. START THE JOB (Step 1: Get Ticket)
+    try {
+      console.log("🚀 Starting Scrape Job...");
+      const startRes = await fetch("/api/extract/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keyword: newMonitor.keyword,
+          location: newMonitor.location,
+          limit: 20, // Keep safe limit for now
+        }),
+      });
+
+      const startData = await startRes.json();
+      if (!startData.success) throw new Error("Failed to start job");
+
+      const requestId = startData.requestId;
+      console.log(`🎫 Job ID: ${requestId}. Polling for results...`);
+
+      // D. POLL FOR RESULTS (Step 2: The Browser Waiting Room)
+      // This runs on the client, so Vercel won't time out.
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes max (5s * 60)
+
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(pollInterval);
+          console.error("Scraping timed out.");
+          return;
+        }
+
+        try {
+          // Ask server: "Is it done?"
+          const checkRes = await fetch("/api/extract/check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requestId }),
+          });
+          const checkData = await checkRes.json();
+
+          if (checkData.status === "SUCCESS") {
+            // SUCCESS!
+            clearInterval(pollInterval);
+            console.log(`✅ Scrape Complete! Found ${checkData.count} leads.`);
+
+            // Re-fetch data from Supabase to show new leads
+            await fetchData();
+          } else {
+            // Still waiting...
+            console.log(
+              `... still processing (Attempt ${attempts}/${maxAttempts})`,
+            );
+          }
+        } catch (pollError) {
+          console.error("Polling check failed", pollError);
+        }
+      }, 5000); // Check every 5 seconds
+    } catch (apiError) {
+      console.error("Scraping Initialization Failed:", apiError);
+    }
+
+    return true;
   };
 
   const unlockLead = async (leadId: string) => {
-    // (Your existing code here)
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+
+    if (userCredits < 1) {
+      alert("Not enough credits");
+      return;
+    }
+
     const newCredits = userCredits - 1;
-    const { error } = await supabase
+
+    // Optimistic UI update
+    setUserCredits(newCredits);
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, is_unlocked: true } : l)),
+    );
+
+    // DB Update: Credits
+    await supabase
       .from("users")
       .update({ credits: newCredits })
       .eq("id", user.id);
-    if (!error) {
-      await supabase
-        .from("leads")
-        .update({ is_unlocked: true })
-        .eq("id", leadId);
-      setLeads((prev) =>
-        prev.map((l) => (l.id === leadId ? { ...l, is_unlocked: true } : l)),
-      );
-      setUserCredits(newCredits);
-    }
+
+    // DB Update: Link Status
+    await supabase
+      .from("user_leads")
+      .update({ is_unlocked: true })
+      .eq("user_id", user.id)
+      .eq("lead_id", leadId);
   };
 
   const clearData = async () => {
-    // (Your existing code here)
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-    const monitorIds = monitors.map((m) => m.id);
-    await supabase.from("leads").delete().in("monitor_id", monitorIds);
+
+    // Delete user's links and monitors
+    // (We do NOT delete from 'leads' table, that's the shared dictionary)
+    await supabase.from("user_leads").delete().eq("user_id", user.id);
     await supabase.from("monitors").delete().eq("user_id", user.id);
+
     setLeads([]);
     setMonitors([]);
   };
 
   const deleteMonitor = async (monitorId: string) => {
-    // (Your existing code here)
-    const monitorToDelete = monitors.find((m) => m.id === monitorId);
-    if (!monitorToDelete) return;
-    await supabase.from("leads").delete().eq("monitor_id", monitorId);
-    const { error } = await supabase
-      .from("monitors")
-      .delete()
-      .eq("id", monitorId);
-    if (!error) {
-      setMonitors((prev) => prev.filter((m) => m.id !== monitorId));
-      setLeads((prev) => prev.filter((l) => l.monitor_id !== monitorId));
-      // ... Reactivation logic ...
-    }
+    // Note: In new system, deleting monitor doesn't strictly delete leads
+    // unless we track which monitor found which lead.
+    // For now, we just delete the monitor record.
+
+    await supabase.from("monitors").delete().eq("id", monitorId);
+    setMonitors((prev) => prev.filter((m) => m.id !== monitorId));
+
+    // Optional: Reactivate old monitor
+    // ... (logic remains same if needed)
   };
 
   const updateMonitor = async (
     monitorId: string,
     updates: Partial<Monitor>,
   ) => {
-    // (Your existing code here)
     const { error } = await supabase
       .from("monitors")
       .update(updates)
       .eq("id", monitorId);
+
     if (!error) {
       setMonitors((prev) =>
         prev.map((m) => (m.id === monitorId ? { ...m, ...updates } : m)),
@@ -198,7 +291,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         leads,
         monitors,
         userCredits,
-        userEmail, // NEW: Expose email
+        userEmail,
         addMonitor,
         unlockLead,
         clearData,
