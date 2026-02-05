@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+// FIX: Ensure this is a Named Import with curly braces
 import { DataProvider } from "@/context/data-provider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

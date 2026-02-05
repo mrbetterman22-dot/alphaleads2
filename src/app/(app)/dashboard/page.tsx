@@ -1,21 +1,15 @@
 "use client";
 
-import {
-  Radio,
-  MoreHorizontal,
-  Target,
-  Sparkles,
-  AlertTriangle,
-} from "lucide-react";
+import { Radio, Target, Sparkles, AlertTriangle, Trash2 } from "lucide-react";
 import { useData } from "@/context/data-provider";
 import { AddMonitorDialog } from "@/components/dashboard/add-monitor-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const { leads, monitors } = useData();
+  // FIX: Destructure 'removeMonitor' so we can use it
+  const { leads, monitors, removeMonitor } = useData();
 
-  // 1. Calculate Live Stats based on your Real Data
   const totalLeads = leads.length;
   const freshLeads = leads.filter(
     (l) => l.opportunity_type === "New Business",
@@ -49,7 +43,6 @@ export default function DashboardPage() {
     <div className="space-y-8 max-w-6xl mx-auto pt-14">
       {/* SECTION 1: DASHBOARD STATS */}
       <div className="space-y-6">
-        {/* FIX: Increased font size to text-3xl to match Leads page */}
         <h2 className="text-3xl font-bold text-white">Dashboard</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {stats.map((stat, i) => (
@@ -57,7 +50,6 @@ export default function DashboardPage() {
               key={i}
               className="group relative overflow-hidden bg-[#0b0a0b] border border-zinc-800 p-6 rounded-2xl shadow-sm transition-all duration-300 hover:border-[#ffe600]/30 hover:shadow-[0_0_30px_rgba(255,230,0,0.05)]"
             >
-              {/* Background Floating Icon Effect */}
               <div className="absolute -right-6 -top-6 text-white/5 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110 pointer-events-none">
                 <stat.icon size={100} />
               </div>
@@ -84,13 +76,11 @@ export default function DashboardPage() {
             Active Monitors
           </h2>
 
-          {/* We wrap the Dialog in your custom button style */}
           <div className="bg-[#ffe600] rounded-full text-black font-bold shadow-lg shadow-[#ffe600]/20 transition-all hover:bg-[#ffe600]/90">
             <AddMonitorDialog />
           </div>
         </div>
 
-        {/* Applied the same border glow to the table container */}
         <div className="bg-[#0b0a0b] border border-zinc-800 rounded-xl overflow-hidden transition-all duration-300 hover:border-[#ffe600]/30 hover:shadow-[0_0_30px_rgba(255,230,0,0.05)]">
           <table className="w-full text-sm text-left">
             <thead className="bg-zinc-900/50 text-zinc-500 border-b border-zinc-800 uppercase text-xs tracking-wider">
@@ -138,15 +128,18 @@ export default function DashboardPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-zinc-500">
-                      {new Date().toLocaleDateString()}
+                      {new Date(m.last_checked).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
+                      {/* FIX: Replaced menu with a direct Delete button for easy testing */}
                       <Button
+                        onClick={() => removeMonitor(m.id)}
                         variant="ghost"
                         size="icon"
-                        className="text-zinc-600 hover:text-white"
+                        className="text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        title="Delete Monitor"
                       >
-                        <MoreHorizontal size={16} />
+                        <Trash2 size={16} />
                       </Button>
                     </td>
                   </tr>

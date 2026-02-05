@@ -81,8 +81,8 @@ export default function Home() {
         {/* HERO SECTION */}
         <div className="mx-auto max-w-2xl space-y-8 mb-20 mt-16">
           <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-            Stop Selling to Cold Databases. Start Closing{" "}
-            <span className="text-[#ffe600]">Trigger-Based Leads.</span>
+            Stop Selling to Cold Databases. Sell to Businesses{" "}
+            <span className="text-[#ffe600]">Who Will Respond.</span>
           </h1>
 
           <p
@@ -92,7 +92,7 @@ export default function Home() {
             )}
           >
             Monitor your target market 24/7. Get alerted the moment a new
-            business opens or a competitor fails a customer.
+            business opens or a business gets a bad review.
           </p>
 
           <div className="flex flex-col items-center gap-4">
@@ -173,8 +173,9 @@ export default function Home() {
                   isDark ? "text-white" : "text-slate-600",
                 )}
               >
-                Receive an email when we find "Fresh Blood" (new businesses) or
-                "Pain Points" (businesses with bad recent reviews).
+                Receive an email when we find "Fresh Opportunity" (new
+                businesses) or "Pain Points" (businesses with bad recent
+                reviews).
               </p>
             </div>
           </div>
@@ -204,8 +205,8 @@ export default function Home() {
                 isDark ? "text-white" : "text-slate-600",
               )}
             >
-              Our GPT-4 logic automatically tags leads as "VAPI" or "Chatbot"
-              opportunities based on customer complaints.
+              Our AI logic automatically tags leads as "Missed Call" or
+              "Chatbot" opportunities based on customer complaints.
             </p>
           </div>
 
@@ -279,8 +280,9 @@ export default function Home() {
                 isDark ? "text-white" : "text-slate-600",
               )}
             >
-              We use Outscraper and GPT-4o-mini to ensure your lead data is
-              fresh and your tags are accurate. No more 3-year-old CSV files.
+              We use AI and Scraper tools to ensure your lead data is fresh
+              (recently scraped) and your tags are accurate. No more 3-year-old
+              CSV files.
             </p>
           </div>
         </div>
