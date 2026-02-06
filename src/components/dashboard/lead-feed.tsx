@@ -29,8 +29,9 @@ export function LeadFeed() {
   const { leads, unlockLead, userCredits } = useData();
   const [activeTab, setActiveTab] = useState<"fresh" | "pain">("fresh");
 
-  // --- THE SNIPER LOGIC ---
+  // --- THE SNIPER LOGIC (Criteria Based) ---
   const getBucket = (lead: any) => {
+    // 1. Gather Metrics
     const oneStar = lead.reviews_per_score_1 || 0;
     const fiveStar = lead.reviews_per_score_5 || 0;
     const generator = (lead.website_generator || "").toLowerCase();
@@ -41,9 +42,9 @@ export function LeadFeed() {
     const rating = lead.rating || 0;
     const reviews = lead.review_count || 0;
 
-    // --- 1. FRESH OPPORTUNITIES (Technical / Existence) ---
+    // --- TAB 1: FRESH OPPORTUNITIES ---
 
-    // 🪣 Bucket D: Unclaimed (The "Quick Flip")
+    // 🪣 Bucket: Unclaimed
     if (lead.is_verified === false) {
       return {
         id: "D",
@@ -55,8 +56,7 @@ export function LeadFeed() {
       };
     }
 
-    // 🪣 Bucket A: Website Issues (The "Tech Pitch")
-    // Checks for No Website, Bad Tech, OR No Pixel
+    // 🪣 Bucket: Website Issues
     if (
       !lead.website ||
       badTech ||
@@ -77,22 +77,20 @@ export function LeadFeed() {
       };
     }
 
-    // --- 2. PAIN POINTS (Reputation / Volume) ---
+    // --- TAB 2: PAIN POINTS ---
 
-    // 🪣 Bucket B/Toxic: Toxic Reviews (Has 1-star reviews)
+    // 🪣 Bucket: Toxic Reviews
     if (oneStar > 0) {
-      // Special Case: High Ticket AI Pitch (If they are a real biz with phone)
       if (fiveStar > 10 && lead.phone) {
         return {
           id: "B",
-          tab: "fresh", // High Ticket Tech Sale
+          tab: "fresh",
           label: "AI High Ticket",
           color: "text-purple-400",
           icon: Bot,
           pitch: `AI Pitch: Has ${oneStar} bad reviews & missed calls.`,
         };
       }
-      // General Case: Toxic Review Removal
       return {
         id: "TOXIC",
         tab: "pain",
@@ -103,7 +101,7 @@ export function LeadFeed() {
       };
     }
 
-    // 🪣 Bucket C: Bad Rating (< 4.5 Stars)
+    // 🪣 Bucket: Bad Rating (< 4.5)
     if (rating < 4.5) {
       return {
         id: "RATING",
@@ -115,8 +113,7 @@ export function LeadFeed() {
       };
     }
 
-    // 🪣 Bucket "Safety Buffer": Low Volume (< 50 Reviews)
-    // This catches EVERYONE else who is "Good" but "Small".
+    // 🪣 Bucket: Low Volume (< 50) - The "Safety Buffer"
     if (reviews < 50) {
       return {
         id: "VOLUME",
@@ -128,14 +125,19 @@ export function LeadFeed() {
       };
     }
 
-    // 🗑️ TRASH (Perfect Business: Verified, Website, >4.5 Stars, >50 Reviews, No 1-Stars)
+    // 🗑️ TRASH: IF IT REACHES HERE, IT IS A PERFECT LEAD.
+    // WE RETURN NULL TO HIDE IT.
     return null;
   };
 
   // --- FILTERING ---
   const filteredLeads = leads.filter((lead) => {
     const bucket = getBucket(lead);
+
+    // Strict Filter: If bucket is null (Perfect Lead), REMOVE IT.
     if (!bucket) return false;
+
+    // Tab Filter
     return bucket.tab === activeTab;
   });
 
@@ -149,7 +151,7 @@ export function LeadFeed() {
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
+      {/* HEADER: Tabs + Hidden Count */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex gap-2 p-1 bg-zinc-900/50 w-fit rounded-lg border border-zinc-800">
           <button
@@ -176,7 +178,6 @@ export function LeadFeed() {
           </button>
         </div>
 
-        {/* HIDDEN COUNTER (Peace of Mind) */}
         {totalHidden > 0 && (
           <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-800">
             <EyeOff size={14} />
@@ -189,7 +190,7 @@ export function LeadFeed() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedLeads.length === 0 ? (
           <div className="col-span-full py-12 text-center text-zinc-500 italic border border-zinc-800/50 rounded-xl">
-            No leads match this category.
+            No specific opportunities found in this category.
           </div>
         ) : (
           sortedLeads.map((lead) => {
@@ -237,8 +238,6 @@ export function LeadFeed() {
                       {lead.city}
                     </p>
                   </div>
-
-                  {/* PITCH SECTION: Explicitly listing the issue */}
                   <div className="bg-zinc-900/50 p-2 rounded text-xs text-zinc-300 border border-zinc-800 flex gap-2 items-start">
                     <BucketIcon
                       size={14}
@@ -246,8 +245,6 @@ export function LeadFeed() {
                     />
                     <span>{bucket.pitch}</span>
                   </div>
-
-                  {/* CONTACT DETAILS */}
                   <div
                     className={`space-y-2 text-sm ${!lead.is_unlocked ? "blur-sm select-none opacity-50" : ""}`}
                   >

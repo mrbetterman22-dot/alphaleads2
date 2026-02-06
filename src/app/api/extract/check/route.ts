@@ -39,33 +39,80 @@ export async function POST(req: Request) {
       if (!item.place_id || item.business_status === "CLOSED_PERMANENTLY")
         continue;
 
-      // --- MAPPING HELPERS ---
-      let email = item.email_1 || item.email;
-      if (!email && Array.isArray(item.emails) && item.emails.length > 0) {
-        const firstEntry = item.emails[0];
-        email = typeof firstEntry === "string" ? firstEntry : firstEntry?.value;
+      // --- SMART EMAIL MAPPING (Prioritize Humans) ---
+      let email = null;
+      const genericPrefixes = [
+        "info",
+        "contact",
+        "support",
+        "admin",
+        "sales",
+        "hello",
+        "office",
+        "team",
+        "inquiries",
+      ];
+
+      // Helper to extract clean email string from Object or String
+      const getEmailString = (entry: any) => {
+        if (typeof entry === "string") return entry;
+        if (typeof entry === "object" && entry.value) return entry.value;
+        return null;
+      };
+
+      // 1. Gather all possible emails from the flat fields AND the array
+      const allEmails: string[] = [];
+      if (item.email_1) allEmails.push(item.email_1);
+      if (item.email_2) allEmails.push(item.email_2);
+      if (item.email_3) allEmails.push(item.email_3);
+
+      if (Array.isArray(item.emails)) {
+        item.emails.forEach((e: any) => {
+          const clean = getEmailString(e);
+          if (clean) allEmails.push(clean);
+        });
       }
 
+      // Remove duplicates
+      const uniqueEmails = [...new Set(allEmails)];
+
+      // 2. Find the "Best" Email
+      // Strategy: Look for an email that DOES NOT start with a generic prefix.
+      const personalEmail = uniqueEmails.find((e) => {
+        const prefix = e.split("@")[0].toLowerCase();
+        return !genericPrefixes.includes(prefix);
+      });
+
+      // 3. Fallback logic
+      if (personalEmail) {
+        email = personalEmail; // Winner: "john.doe@gym.com"
+      } else if (uniqueEmails.length > 0) {
+        email = uniqueEmails[0]; // Loser: "info@gym.com" (Better than nothing)
+      }
+
+      // --- SMART NAME MAPPING ---
       let fullName =
         item.owner_name || item.contact_name || item.email_1_full_name;
       if (!fullName && Array.isArray(item.emails) && item.emails.length > 0) {
         const firstEntry = item.emails[0];
-        if (typeof firstEntry === "object") fullName = firstEntry.full_name;
+        if (typeof firstEntry === "object" && firstEntry.full_name) {
+          fullName = firstEntry.full_name;
+        }
       }
       if (!fullName && item.email_1_title) fullName = item.email_1_title;
 
-      // --- CRITICAL FIX: CAPTURE THE DATA POINTS ---
+      // --- CRITICAL FIX: CAPTURE THE PAIN METRICS ---
       const oneStar = item.reviews_per_score_1 || 0;
       const fiveStar = item.reviews_per_score_5 || 0;
       const generator = item.site_generator || "";
       const hasPixel = item.site_pixel ? true : false;
+      const isVerified = item.verified === false ? false : true;
 
       // --- BUCKET LOGIC (Backend Pre-calc) ---
-      // We calculate a default bucket here so the DB is never "empty" of status
       let bucket = "Qualified Lead";
       let details = "Good data available.";
 
-      if (item.verified === false) {
+      if (!isVerified) {
         bucket = "Unclaimed Business";
         details = "Google Listing not claimed.";
       } else if (!item.site) {
@@ -87,12 +134,12 @@ export async function POST(req: Request) {
         rating: item.rating || 0,
         review_count: item.reviews || 0,
 
-        // SAVE THE NEW METRICS (This was missing before!)
+        // SAVE THE NEW METRICS
         reviews_per_score_1: oneStar,
         reviews_per_score_5: fiveStar,
         website_generator: generator,
         website_has_fb_pixel: hasPixel,
-        is_verified: item.verified === false ? false : true,
+        is_verified: isVerified,
 
         bucket_category: bucket,
         bucket_details: details,
@@ -102,26 +149,25 @@ export async function POST(req: Request) {
     }
 
     if (validLeads.length > 0) {
+      // Upsert to Global Dictionary
       await supabase
         .from("leads")
         .upsert(validLeads, { onConflict: "place_id", ignoreDuplicates: true });
 
+      // Link to User
       const { data: dbLeads } = await supabase
         .from("leads")
         .select("id, place_id")
         .in("place_id", validPlaceIds);
-
       const userLinks = dbLeads!.map((l) => ({
         user_id: userId,
         lead_id: l.id,
         is_unlocked: false,
       }));
-      await supabase
-        .from("user_leads")
-        .upsert(userLinks, {
-          onConflict: "user_id, lead_id",
-          ignoreDuplicates: true,
-        });
+      await supabase.from("user_leads").upsert(userLinks, {
+        onConflict: "user_id, lead_id",
+        ignoreDuplicates: true,
+      });
     }
 
     return NextResponse.json({ status: "SUCCESS", count: validLeads.length });

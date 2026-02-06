@@ -1,6 +1,14 @@
 "use client";
 
-import { Radio, Target, Sparkles, AlertTriangle, Trash2 } from "lucide-react";
+import {
+  Radio,
+  Target,
+  Sparkles,
+  LayoutList,
+  Play,
+  Loader2,
+  Trash2,
+} from "lucide-react";
 import { useData } from "@/context/data-provider";
 import { AddMonitorDialog } from "@/components/dashboard/add-monitor-dialog";
 import { ConsoleWindow } from "@/components/dashboard/console-window";
@@ -17,42 +25,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import Link from "next/link";
 
 export default function DashboardPage() {
-  const { leads, monitors, deleteMonitor } = useData();
+  const { leads, monitors, deleteMonitor, startScrape } = useData();
 
-  // --- STATS LOGIC UPDATE ---
-
-  // 1. Calculate specific types first
-  const freshLeads = leads.filter(
-    (l) => l.opportunity_type === "New Business",
-  ).length;
-  const painPoints = leads.filter(
-    (l) => l.opportunity_type === "Bad Review",
-  ).length;
-
-  // 2. Total is now strictly the sum of sellable opportunities
-  // (We ignore 'High Performer' or other types)
-  const totalLeads = freshLeads + painPoints;
+  const freshLeads = leads.filter((l) => !l.is_unlocked).length;
+  const unlockedLeads = leads.filter((l) => l.is_unlocked).length;
 
   const stats = [
     {
-      label: "Actionable Leads",
-      value: totalLeads,
+      label: "Total Opportunities",
+      value: leads.length,
       color: "text-white",
       icon: Target,
     },
     {
-      label: "New Business",
+      label: "Fresh Leads",
       value: freshLeads,
       color: "text-[#ffe600]",
       icon: Sparkles,
     },
     {
-      label: "Pain Points",
-      value: painPoints,
-      color: "text-red-500",
-      icon: AlertTriangle,
+      label: "Unlocked",
+      value: unlockedLeads,
+      color: "text-green-500",
+      icon: LayoutList,
     },
   ];
 
@@ -127,15 +125,69 @@ export default function DashboardPage() {
                     <td className="px-6 py-4">
                       <Badge
                         variant="outline"
-                        className={`uppercase text-[10px] tracking-wider border ${m.status === "active" ? "bg-[#ffe600]/10 text-[#ffe600] border-[#ffe600]/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}
+                        className={`uppercase text-[10px] tracking-wider border ${
+                          m.status === "active"
+                            ? "bg-[#ffe600]/10 text-[#ffe600] border-[#ffe600]/20 animate-pulse"
+                            : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                        }`}
                       >
-                        {m.status}
+                        {m.status === "active" ? "RUNNING" : "READY"}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-zinc-500">
                       {new Date(m.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-right">
+
+                    {/* ACTIONS */}
+                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                      {/* START BUTTON (With Cost Warning) */}
+                      {m.status !== "active" ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-[#ffe600] hover:text-[#ffe600] hover:bg-[#ffe600]/10"
+                              title="Start Scan (10 Credits)"
+                            >
+                              <Play size={16} fill="currentColor" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Start New Scan?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action will start a fresh scrape for{" "}
+                                <strong>"{m.keyword}"</strong> in{" "}
+                                <strong>"{m.location}"</strong>.
+                                <br />
+                                <br />
+                                <span className="text-[#ffe600] font-bold">
+                                  Cost: 10 Credits
+                                </span>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => startScrape(m)}
+                                className="bg-[#ffe600] text-black hover:bg-[#ffe600]/90"
+                              >
+                                Confirm (-10 Credits)
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <div className="flex items-center text-[#ffe600] text-xs font-bold px-3">
+                          <Loader2 className="animate-spin mr-2" size={14} />
+                          Scraping...
+                        </div>
+                      )}
+
+                      {/* DELETE BUTTON */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -175,8 +227,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* SECTION 3: LIVE CONSOLE */}
-      <div className="space-y-4 pt-4">
+      {/* QUICK LINK */}
+      <div className="flex justify-end pt-2">
+        <Link href="/leads">
+          <Button
+            variant="outline"
+            className="text-zinc-400 hover:text-white border-zinc-700"
+          >
+            View All Leads →
+          </Button>
+        </Link>
+      </div>
+
+      {/* CONSOLE */}
+      <div className="space-y-4 pt-8 border-t border-zinc-800">
+        <h3 className="text-sm font-medium text-zinc-500">System Logs</h3>
         <ConsoleWindow />
       </div>
     </div>

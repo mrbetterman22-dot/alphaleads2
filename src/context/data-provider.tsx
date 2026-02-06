@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Lead, Monitor } from "@/lib/types";
+import { toast } from "@/hooks/use-toast"; // Ensure you have this or use alert
 
 interface DataContextType {
   leads: Lead[];
@@ -17,6 +18,7 @@ interface DataContextType {
   userCredits: number;
   userEmail: string | undefined;
   addMonitor: (monitor: Partial<Monitor>) => Promise<boolean>;
+  startScrape: (monitor: Monitor) => Promise<void>;
   unlockLead: (leadId: string) => Promise<void>;
   clearData: () => Promise<void>;
   deleteMonitor: (monitorId: string) => Promise<void>;
@@ -35,7 +37,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const supabase = createClientComponentClient();
 
-  // 1. CENTRAL FETCH FUNCTION (Reusable)
   const fetchData = useCallback(async () => {
     const {
       data: { user },
@@ -44,7 +45,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     setUserEmail(user.email);
 
-    // A. Fetch Credits
     const { data: userData } = await supabase
       .from("users")
       .select("credits")
@@ -53,7 +53,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     if (userData) setUserCredits(userData.credits);
 
-    // B. Fetch Monitors
     const { data: monitorData } = await supabase
       .from("monitors")
       .select("*")
@@ -64,8 +63,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setMonitors(monitorData);
     }
 
-    // C. Fetch Leads (Using the new user_leads mapping)
-    // First, find which leads belong to this user
     const { data: linkData } = await supabase
       .from("user_leads")
       .select("lead_id, is_unlocked")
@@ -73,15 +70,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     if (linkData && linkData.length > 0) {
       const leadIds = linkData.map((link) => link.lead_id);
-
-      // Then fetch the actual business data
       const { data: businessData } = await supabase
         .from("leads")
         .select("*")
         .in("id", leadIds);
 
       if (businessData) {
-        // Merge the 'is_unlocked' status into the business object
         const mergedLeads = businessData.map((biz) => {
           const link = linkData.find((l) => l.lead_id === biz.id);
           return {
@@ -92,41 +86,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setLeads(mergedLeads);
       }
     } else {
-      setLeads([]); // No leads linked yet
+      setLeads([]);
     }
   }, [supabase]);
 
-  // Initial Load
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // 2. ADD MONITOR (With Vercel-Safe Polling)
   const addMonitor = async (newMonitor: Partial<Monitor>): Promise<boolean> => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // A. Pause existing active monitors (Single Active Monitor Rule)
-    const { data: existingActive } = await supabase
-      .from("monitors")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("status", "active");
+    // Default status is "paused"
+    const fullMonitor = { ...newMonitor, user_id: user.id, status: "paused" };
 
-    if (existingActive && existingActive.length > 0) {
-      await supabase
-        .from("monitors")
-        .update({ status: "paused" })
-        .in(
-          "id",
-          existingActive.map((m) => m.id),
-        );
-    }
-
-    // B. Insert New Monitor into DB
-    const fullMonitor = { ...newMonitor, user_id: user.id, status: "active" };
     const { data: savedMonitor, error } = await supabase
       .from("monitors")
       .insert(fullMonitor)
@@ -138,22 +114,57 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    // Update Local UI instantly
-    setMonitors((prev) => {
-      const paused = prev.map((m) => ({ ...m, status: "paused" as const }));
-      return [savedMonitor, ...paused];
-    });
+    setMonitors((prev) => [savedMonitor, ...prev]);
+    return true;
+  };
 
-    // C. START THE JOB (Step 1: Get Ticket)
+  // --- UPDATED: START SCRAPE WITH COST ---
+  const startScrape = async (monitor: Monitor) => {
+    const COST = 10;
+
+    // 1. Check Credits
+    if (userCredits < COST) {
+      toast({
+        title: "Insufficient Credits",
+        description: `You need ${COST} credits to start a scan. You have ${userCredits}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. Deduct Credits Optimistically
+    const newBalance = userCredits - COST;
+    setUserCredits(newBalance);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("users")
+        .update({ credits: newBalance })
+        .eq("id", user.id);
+    }
+
+    // 3. Update UI to "Active"
+    const updateLocalStatus = (id: string, status: "active" | "paused") => {
+      setMonitors((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, status } : m)),
+      );
+    };
+    updateLocalStatus(monitor.id, "active");
+
+    // 4. Run the Job
     try {
-      console.log("🚀 Starting Scrape Job...");
+      console.log(`🚀 Starting scrape (-${COST} credits)...`);
+
       const startRes = await fetch("/api/extract/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keyword: newMonitor.keyword,
-          location: newMonitor.location,
-          limit: 20, // Keep safe limit for now
+          keyword: monitor.keyword,
+          location: monitor.location,
+          limit: 20,
         }),
       });
 
@@ -161,23 +172,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!startData.success) throw new Error("Failed to start job");
 
       const requestId = startData.requestId;
-      console.log(`🎫 Job ID: ${requestId}. Polling for results...`);
 
-      // D. POLL FOR RESULTS (Step 2: The Browser Waiting Room)
-      // This runs on the client, so Vercel won't time out.
+      // 5. Poll
       let attempts = 0;
-      const maxAttempts = 60; // 5 minutes max (5s * 60)
+      const maxAttempts = 120;
 
       const pollInterval = setInterval(async () => {
         attempts++;
         if (attempts > maxAttempts) {
           clearInterval(pollInterval);
-          console.error("Scraping timed out.");
+          updateLocalStatus(monitor.id, "paused");
           return;
         }
 
         try {
-          // Ask server: "Is it done?"
           const checkRes = await fetch("/api/extract/check", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -186,27 +194,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const checkData = await checkRes.json();
 
           if (checkData.status === "SUCCESS") {
-            // SUCCESS!
             clearInterval(pollInterval);
-            console.log(`✅ Scrape Complete! Found ${checkData.count} leads.`);
-
-            // Re-fetch data from Supabase to show new leads
             await fetchData();
-          } else {
-            // Still waiting...
-            console.log(
-              `... still processing (Attempt ${attempts}/${maxAttempts})`,
-            );
+            updateLocalStatus(monitor.id, "paused");
+            toast({
+              title: "Scan Complete",
+              description: `Found ${checkData.count} new leads.`,
+            });
           }
         } catch (pollError) {
-          console.error("Polling check failed", pollError);
+          console.error("Polling error", pollError);
         }
-      }, 5000); // Check every 5 seconds
-    } catch (apiError) {
-      console.error("Scraping Initialization Failed:", apiError);
+      }, 5000);
+    } catch (error) {
+      console.error("Scrape failed", error);
+      updateLocalStatus(monitor.id, "paused");
+      // Refund on failure? Optional, but safer to keep it simple for now.
+      alert("Failed to start scraper. Check console.");
     }
-
-    return true;
   };
 
   const unlockLead = async (leadId: string) => {
@@ -214,27 +219,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-
     if (userCredits < 1) {
       alert("Not enough credits");
       return;
     }
-
     const newCredits = userCredits - 1;
-
-    // Optimistic UI update
     setUserCredits(newCredits);
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, is_unlocked: true } : l)),
     );
-
-    // DB Update: Credits
     await supabase
       .from("users")
       .update({ credits: newCredits })
       .eq("id", user.id);
-
-    // DB Update: Link Status
     await supabase
       .from("user_leads")
       .update({ is_unlocked: true })
@@ -247,26 +244,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-
-    // Delete user's links and monitors
-    // (We do NOT delete from 'leads' table, that's the shared dictionary)
     await supabase.from("user_leads").delete().eq("user_id", user.id);
     await supabase.from("monitors").delete().eq("user_id", user.id);
-
     setLeads([]);
     setMonitors([]);
   };
 
   const deleteMonitor = async (monitorId: string) => {
-    // Note: In new system, deleting monitor doesn't strictly delete leads
-    // unless we track which monitor found which lead.
-    // For now, we just delete the monitor record.
-
     await supabase.from("monitors").delete().eq("id", monitorId);
     setMonitors((prev) => prev.filter((m) => m.id !== monitorId));
-
-    // Optional: Reactivate old monitor
-    // ... (logic remains same if needed)
   };
 
   const updateMonitor = async (
@@ -277,7 +263,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .from("monitors")
       .update(updates)
       .eq("id", monitorId);
-
     if (!error) {
       setMonitors((prev) =>
         prev.map((m) => (m.id === monitorId ? { ...m, ...updates } : m)),
@@ -293,6 +278,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         userCredits,
         userEmail,
         addMonitor,
+        startScrape,
         unlockLead,
         clearData,
         deleteMonitor,

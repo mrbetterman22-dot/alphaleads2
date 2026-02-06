@@ -6,6 +6,7 @@ export async function POST(req: Request) {
     const { keyword, location, limit } = await req.json();
     const apiKey = process.env.OUTSCRAPER_API_KEY;
 
+    // 1. Trigger Outscraper (Async Mode)
     const searchQuery = `${keyword} in ${location}`;
     addLog(`🚀 STARTING DEEP JOB: "${searchQuery}"`);
 
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
     const response = await fetch(apiUrl, { headers: { "X-API-KEY": apiKey! } });
     const data = await response.json();
 
+    // 2. Return the Request ID immediately
     return NextResponse.json({ success: true, requestId: data.id });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

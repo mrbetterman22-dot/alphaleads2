@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useData } from "@/context/data-provider";
 import { LeadCard } from "@/components/dashboard/lead-card";
 import {
-  Coins,
   FileSpreadsheet,
   Lock,
   Unlock,
@@ -14,19 +13,28 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function LeadsPage() {
-  // FIX: Destructure userCredits from context
   const { leads, unlockLead, userCredits } = useData();
   const [activeTab, setActiveTab] = useState<"fresh" | "pain">("fresh");
 
-  // FIX: Use real credits instead of hardcoded 15
   const credits = userCredits;
 
-  // Filter leads based on tab
-  const filteredLeads = leads.filter((l) =>
-    activeTab === "fresh"
-      ? l.opportunity_type === "New Business"
-      : l.opportunity_type === "Bad Review" || l.rating < 4,
-  );
+  // --- FILTERING LOGIC ---
+  const filteredLeads = leads.filter((l) => {
+    if (activeTab === "fresh") {
+      // Logic for Fresh Opportunities
+      return (
+        l.opportunity_tags?.includes("Website Pitch") ||
+        l.opportunity_tags?.includes("Quick Flip")
+      );
+    } else {
+      // PAIN HUNTER LOGIC:
+      // 1. Less than 50 reviews
+      // 2. Less than 4.6 stars
+      // 3. At least one 1-star review
+      const hasBadReview = (l.reviews_per_score_1 ?? 0) > 0;
+      return l.review_count < 50 && l.rating < 4.6 && hasBadReview;
+    }
+  });
 
   const lockedLeadsCount = filteredLeads.filter((l) => !l.is_unlocked).length;
 
@@ -40,56 +48,43 @@ export default function LeadsPage() {
     alert("Unlock All Feature coming soon!");
   };
 
+  // --- CSV DOWNLOAD LOGIC ---
   const downloadCSV = () => {
     const headers = [
       "business_name",
-      "opportunity_type",
       "rating",
-      "review_text",
+      "review_count",
       "email",
       "phone",
-      "is_unlocked",
+      "city",
     ];
 
-    const freshLeads = leads.filter(
-      (l) => l.opportunity_type === "New Business" && l.is_unlocked
-    );
-    const painLeads = leads.filter(
-      (l) => (l.opportunity_type === "Bad Review" || l.rating < 4) && l.is_unlocked
-    );
-
-    const toCSV = (data: Lead[]) => // Changed type from typeof leads to Lead[]
+    const toCSV = (data: any[]) =>
       data
         .map((lead) =>
           headers
             .map((header) => {
-              let value = lead[header as keyof typeof lead] ?? "";
+              let value = lead[header] ?? "";
               if (typeof value === "string") {
                 value = `"${value.replace(/"/g, '""')}"`;
               }
               return value;
             })
-            .join(",")
+            .join(","),
         )
         .join("\n");
 
     const csvContent = [
-      "# Fresh Opportunities",
+      `# ${activeTab === "fresh" ? "Fresh Opportunities" : "Pain Points"}`,
       headers.join(","),
-      toCSV(freshLeads),
-      "\n# Pain Points",
-      headers.join(","),
-      toCSV(painLeads),
+      toCSV(filteredLeads.filter((l) => l.is_unlocked)),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    if (link.href) {
-      URL.revokeObjectURL(link.href);
-    }
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "leads.csv");
+    link.setAttribute("download", `alphaleads_${activeTab}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -104,7 +99,6 @@ export default function LeadsPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          {/* FRESH OPPORTUNITIES BUTTON */}
           <Button
             onClick={() => setActiveTab("fresh")}
             className={`
@@ -120,7 +114,6 @@ export default function LeadsPage() {
             Fresh Opportunities
           </Button>
 
-          {/* PAIN HUNTER BUTTON */}
           <Button
             onClick={() => setActiveTab("pain")}
             className={`
@@ -136,7 +129,6 @@ export default function LeadsPage() {
             Pain Hunter
           </Button>
 
-          {/* CSV Export Button */}
           <Button
             variant="outline"
             className="h-10 px-4 rounded-full border-zinc-800 bg-[#0b0a0b] text-zinc-400 hover:text-white hover:bg-zinc-900 hover:border-zinc-700"
@@ -149,7 +141,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Leads Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {filteredLeads.map((lead) => (
           <LeadCard
             key={lead.id}
@@ -162,10 +154,7 @@ export default function LeadsPage() {
         {filteredLeads.length === 0 && (
           <div className="col-span-full text-center py-20 border border-dashed border-zinc-800 rounded-xl bg-[#0b0a0b]">
             <p className="text-zinc-500">
-              No leads found for this category yet.
-            </p>
-            <p className="text-sm text-zinc-600 mt-2">
-              Try adding a new Monitor in the Dashboard.
+              No leads found for this specific criteria.
             </p>
           </div>
         )}
@@ -191,9 +180,7 @@ export default function LeadsPage() {
             ) : (
               <Lock size={18} className="mr-2" />
             )}
-            Unlock All{" "}
-            {activeTab === "fresh" ? "Fresh Opportunities" : "Pain Points"} (
-            {lockedLeadsCount} Credits)
+            Unlock All ({lockedLeadsCount} Credits)
           </Button>
         </div>
       )}

@@ -1,4 +1,3 @@
-// src/lib/types.ts
 export interface User {
   id: string;
   email: string;
@@ -30,15 +29,14 @@ export interface Lead {
 
   // The "Money Metrics"
   reviews_per_score_1?: number;
-  reviews_per_score_5?: number; // NEW
-  website_generator?: string; // NEW
-  website_has_fb_pixel?: boolean; // NEW
+  reviews_per_score_5?: number;
+  website_generator?: string;
+  website_has_fb_pixel?: boolean;
   is_verified?: boolean;
 
   // System Fields
-  bucket_category?: string;
-  bucket_details?: string;
-  is_unlocked: boolean;
+  opportunity_tags: string[]; // This stores the Sales Buckets (e.g., "Website Pitch")
   business_status?: string;
   city?: string;
+  is_unlocked: boolean;
 }
