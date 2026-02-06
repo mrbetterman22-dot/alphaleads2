@@ -1,15 +1,13 @@
 import { Lead } from "./types";
 
-// ... (keep your existing identifyLead function here) ...
-// Ensure you append this NEW function at the bottom of src/lib/data.ts
-
+// This is the function we use now.
+// If you have 'identifyLead' anywhere else, rename it to this.
 export function classifyLead(lead: Lead) {
   const oneStar = lead.reviews_per_score_1 || 0;
   const rating = lead.rating || 0;
   const reviews = lead.review_count || 0;
 
-  // 1. FRESH OPPORTUNITIES (Focus: Needs Website)
-  // Logic: No website, or unverified Google Profile.
+  // 1. FRESH OPPORTUNITIES
   if (!lead.website || lead.is_verified === false) {
     return {
       type: "fresh",
@@ -21,8 +19,7 @@ export function classifyLead(lead: Lead) {
     };
   }
 
-  // 2. PAIN HUNTER (Focus: Bad Reviews)
-  // Logic: Low rating (<4.5), Low volume (<50), or Has 1-star reviews.
+  // 2. PAIN HUNTER
   if (rating < 4.5 || reviews < 50 || oneStar > 0) {
     let label = "Growth Opportunity";
     if (rating < 4.5) label = "Reputation Repair";
@@ -39,7 +36,7 @@ export function classifyLead(lead: Lead) {
     };
   }
 
-  // 3. UNCATEGORIZED (Good businesses)
+  // 3. OTHER
   return {
     type: "other",
     label: "Qualified Lead",
