@@ -1,15 +1,13 @@
+"use client";
 
-'use client';
-
-import { CategoryManager } from '@/components/settings/category-manager';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,47 +18,53 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useData } from '@/context/data-provider';
-import { useToast } from '@/hooks/use-toast';
-import { Trash2 } from 'lucide-react';
-import { AppearanceSettings } from '@/components/settings/appearance-settings';
+} from "@/components/ui/alert-dialog";
+import { useData } from "@/context/data-provider";
+import { useToast } from "@/hooks/use-toast";
+import { Trash2 } from "lucide-react";
+import { AppearanceSettings } from "@/components/settings/appearance-settings";
 
 export default function SettingsPage() {
   const { clearData } = useData();
   const { toast } = useToast();
 
-  const handleClearData = () => {
-    clearData();
+  const handleClearData = async () => {
+    await clearData();
     toast({
-      title: 'Data Cleared',
-      description: 'All your transaction data has been removed.',
+      title: "Data Cleared",
+      description: "All your leads and monitors have been removed.",
     });
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto pt-14">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your account and application settings.
+        <h1 className="text-3xl font-bold text-white">Settings</h1>
+        <p className="text-zinc-400 mt-2">
+          Manage your account preferences and data.
         </p>
       </div>
+
+      {/* THEME SETTINGS */}
       <AppearanceSettings />
-      <CategoryManager />
-      <Card>
+
+      {/* DANGER ZONE */}
+      <Card className="border-red-900/50 bg-red-900/10">
         <CardHeader>
-          <CardTitle>Data Management</CardTitle>
-          <CardDescription>
-            Manage your application data. These actions are irreversible.
+          <CardTitle className="text-red-500">Danger Zone</CardTitle>
+          <CardDescription className="text-red-200/60">
+            These actions are irreversible.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">
+              <Button
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Clear All Data
+                Clear All Leads & Monitors
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -68,13 +72,16 @@ export default function SettingsPage() {
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This action cannot be undone. This will permanently delete all
-                  your statements and transactions from the application.
+                  your scraped leads and active monitors from the database.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearData}>
-                  Continue
+                <AlertDialogAction
+                  onClick={handleClearData}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Yes, Delete Everything
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
