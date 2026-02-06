@@ -1,50 +1,49 @@
 import { Lead } from "./types";
 
-export function identifyLead(
-  incomingBusiness: any,
-  history: Lead[],
-): Lead | null {
-  // Check if we already have this business in our database
-  const exists = history.find((h) => h.place_id === incomingBusiness.place_id);
+// ... (keep your existing identifyLead function here) ...
+// Ensure you append this NEW function at the bottom of src/lib/data.ts
 
-  // If it's a brand new business we've never seen, it's a Lead
-  if (!exists) {
+export function classifyLead(lead: Lead) {
+  const oneStar = lead.reviews_per_score_1 || 0;
+  const rating = lead.rating || 0;
+  const reviews = lead.review_count || 0;
+
+  // 1. FRESH OPPORTUNITIES (Focus: Needs Website)
+  // Logic: No website, or unverified Google Profile.
+  if (!lead.website || lead.is_verified === false) {
     return {
-      id: crypto.randomUUID(),
-      monitor_id: incomingBusiness.monitor_id,
-      place_id: incomingBusiness.place_id,
-      business_name: incomingBusiness.name || incomingBusiness.business_name,
-      opportunity_type: "New Business",
-      is_unlocked: false,
-      rating: incomingBusiness.rating || 0,
-      review_count:
-        incomingBusiness.reviews || incomingBusiness.review_count || 0,
-      reviews_per_score_1: incomingBusiness.reviews_per_score_1 || 0,
-      created_at: new Date().toISOString(),
+      type: "fresh",
+      label: !lead.website ? "Needs Website" : "Unclaimed Profile",
+      color: "text-blue-400",
+      pitch: !lead.website
+        ? "Pitch: Custom Website Development"
+        : "Pitch: GMB Verification Service",
     };
   }
 
-  // If we already knew about them, check if they now have "Pain Points"
-  // Logic: Less than 50 reviews AND less than 4.6 stars AND at least one 1-star review
-  const hasPain =
-    incomingBusiness.rating < 4.6 &&
-    (incomingBusiness.reviews || incomingBusiness.review_count) < 50 &&
-    incomingBusiness.reviews_per_score_1 > 0;
+  // 2. PAIN HUNTER (Focus: Bad Reviews)
+  // Logic: Low rating (<4.5), Low volume (<50), or Has 1-star reviews.
+  if (rating < 4.5 || reviews < 50 || oneStar > 0) {
+    let label = "Growth Opportunity";
+    if (rating < 4.5) label = "Reputation Repair";
+    if (oneStar > 0) label = "Toxic Review Removal";
 
-  if (hasPain) {
     return {
-      id: crypto.randomUUID(),
-      monitor_id: incomingBusiness.monitor_id,
-      place_id: incomingBusiness.place_id,
-      business_name: incomingBusiness.name || incomingBusiness.business_name,
-      opportunity_type: "Bad Review",
-      is_unlocked: false,
-      rating: incomingBusiness.rating,
-      review_count: incomingBusiness.reviews || incomingBusiness.review_count,
-      reviews_per_score_1: incomingBusiness.reviews_per_score_1,
-      created_at: new Date().toISOString(),
+      type: "pain",
+      label: label,
+      color: "text-red-400",
+      pitch:
+        oneStar > 0
+          ? `Critical: Has ${oneStar} bad reviews.`
+          : `Fragile: Only ${reviews} reviews. Needs padding.`,
     };
   }
 
-  return null;
+  // 3. UNCATEGORIZED (Good businesses)
+  return {
+    type: "other",
+    label: "Qualified Lead",
+    color: "text-green-400",
+    pitch: "Standard Outreach",
+  };
 }

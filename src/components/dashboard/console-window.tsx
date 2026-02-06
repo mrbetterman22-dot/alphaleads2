@@ -5,16 +5,16 @@ import { Terminal, Trash2, RefreshCw } from "lucide-react";
 
 export function ConsoleWindow() {
   const [logs, setLogs] = useState<string[]>([]);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // CTO FIX: Use a ref for the CONTAINER, not the bottom element.
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchLogs = async () => {
     try {
-      // FIX: Updated path to match your folder structure
       const res = await fetch("/api/extract/logs");
-
       if (!res.ok) throw new Error("Route not found");
-
       const data = await res.json();
+
+      // Optimization: Only update if we have logs to avoid empty state flickers
       if (data.logs) setLogs(data.logs);
     } catch (e) {
       console.error("Failed to fetch logs. Check API path.");
@@ -22,7 +22,6 @@ export function ConsoleWindow() {
   };
 
   const clearLogs = async () => {
-    // FIX: Updated path here as well
     await fetch("/api/extract/logs", { method: "DELETE" });
     setLogs([]);
   };
@@ -34,9 +33,12 @@ export function ConsoleWindow() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-scroll to bottom
+  // CTO FIX: Internal Scroll Only
+  // We manipulate scrollTop so the PAGE doesn't jump, only the box text.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [logs]);
 
   return (
@@ -68,7 +70,11 @@ export function ConsoleWindow() {
       </div>
 
       {/* Console Output */}
-      <div className="h-64 overflow-y-auto p-4 font-mono text-xs space-y-2 bg-black/80 backdrop-blur-sm">
+      {/* CTO FIX: Added ref={scrollRef} here for internal scrolling */}
+      <div
+        ref={scrollRef}
+        className="h-64 overflow-y-auto p-4 font-mono text-xs space-y-2 bg-black/80 backdrop-blur-sm scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
+      >
         {logs.length === 0 ? (
           <p className="text-zinc-600 italic">Waiting for system activity...</p>
         ) : (
@@ -82,7 +88,6 @@ export function ConsoleWindow() {
             </div>
           ))
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );

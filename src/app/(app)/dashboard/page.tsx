@@ -3,8 +3,8 @@
 import {
   Radio,
   Target,
-  Sparkles,
-  LayoutList,
+  Globe,
+  AlertTriangle,
   Play,
   Loader2,
   Trash2,
@@ -30,27 +30,40 @@ import Link from "next/link";
 export default function DashboardPage() {
   const { leads, monitors, deleteMonitor, startScrape } = useData();
 
-  const freshLeads = leads.filter((l) => !l.is_unlocked).length;
-  const unlockedLeads = leads.filter((l) => l.is_unlocked).length;
+  // --- 1. METRIC: Total Leads ---
+  const totalLeads = leads.length;
+
+  // --- 2. METRIC: Needs Website (Fresh Ops) ---
+  const websiteLeads = leads.filter(
+    (l) => !l.website || l.is_verified === false,
+  ).length;
+
+  // --- 3. METRIC: Bad Reviews (Pain Points) ---
+  const badReviewLeads = leads.filter(
+    (l) =>
+      (l.rating > 0 && l.rating < 4.5) ||
+      (l.review_count > 0 && l.review_count < 50) ||
+      (l.reviews_per_score_1 && l.reviews_per_score_1 > 0),
+  ).length;
 
   const stats = [
     {
-      label: "Total Opportunities",
-      value: leads.length,
+      label: "Total Leads",
+      value: totalLeads,
       color: "text-white",
       icon: Target,
     },
     {
-      label: "Fresh Leads",
-      value: freshLeads,
-      color: "text-[#ffe600]",
-      icon: Sparkles,
+      label: "Needs Website",
+      value: websiteLeads,
+      color: "text-blue-400",
+      icon: Globe,
     },
     {
-      label: "Unlocked",
-      value: unlockedLeads,
-      color: "text-green-500",
-      icon: LayoutList,
+      label: "Bad Reviews",
+      value: badReviewLeads,
+      color: "text-red-400",
+      icon: AlertTriangle,
     },
   ];
 
@@ -140,7 +153,7 @@ export default function DashboardPage() {
 
                     {/* ACTIONS */}
                     <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                      {/* START BUTTON (With Cost Warning) */}
+                      {/* START BUTTON */}
                       {m.status !== "active" ? (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -173,7 +186,7 @@ export default function DashboardPage() {
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => startScrape(m)}
-                                className="bg-[#ffe600] text-black hover:bg-[#ffe600]/90"
+                                className="!bg-[#ffe600] !text-black hover:!bg-[#ffe600]/90 font-bold border-none"
                               >
                                 Confirm (-10 Credits)
                               </AlertDialogAction>
@@ -239,9 +252,8 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* CONSOLE */}
-      <div className="space-y-4 pt-8 border-t border-zinc-800">
-        <h3 className="text-sm font-medium text-zinc-500">System Logs</h3>
+      {/* CONSOLE (CTO FIX: Removed border-t and label) */}
+      <div className="space-y-4 pt-4">
         <ConsoleWindow />
       </div>
     </div>
