@@ -1,87 +1,46 @@
-"use client";
+import { Lead } from "./types";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useData } from "@/context/data-provider";
-import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
-import { AppearanceSettings } from "@/components/settings/appearance-settings";
+export function classifyLead(lead: Lead) {
+  const oneStar = lead.reviews_per_score_1 || 0;
+  const rating = lead.rating || 0;
+  const reviews = lead.review_count || 0;
 
-export default function SettingsPage() {
-  const { clearData } = useData();
-  const { toast } = useToast();
+  // 1. FRESH OPPORTUNITIES (Focus: Needs Website)
+  // Logic: No website, or unverified Google Profile.
+  if (!lead.website || lead.is_verified === false) {
+    return {
+      type: "fresh",
+      label: !lead.website ? "Needs Website" : "Unclaimed Profile",
+      color: "text-blue-400",
+      pitch: !lead.website
+        ? "Pitch: Custom Website Development"
+        : "Pitch: GMB Verification Service",
+    };
+  }
 
-  const handleClearData = async () => {
-    await clearData();
-    toast({
-      title: "Data Cleared",
-      description: "All your leads and monitors have been removed.",
-    });
+  // 2. PAIN HUNTER (Focus: Bad Reviews)
+  // Logic: Low rating (<4.5), Low volume (<50), or Has 1-star reviews.
+  if (rating < 4.5 || reviews < 50 || oneStar > 0) {
+    let label = "Growth Opportunity";
+    if (rating < 4.5) label = "Reputation Repair";
+    if (oneStar > 0) label = "Toxic Review Removal";
+
+    return {
+      type: "pain",
+      label: label,
+      color: "text-red-400",
+      pitch:
+        oneStar > 0
+          ? `Critical: Has ${oneStar} bad reviews.`
+          : `Fragile: Only ${reviews} reviews. Needs padding.`,
+    };
+  }
+
+  // 3. UNCATEGORIZED (Good businesses)
+  return {
+    type: "other",
+    label: "Qualified Lead",
+    color: "text-green-400",
+    pitch: "Standard Outreach",
   };
-
-  return (
-    <div className="space-y-6 max-w-2xl mx-auto pt-14">
-      <div>
-        <h1 className="text-3xl font-bold text-white">Settings</h1>
-        <p className="text-zinc-400 mt-2">
-          Manage your account preferences and data.
-        </p>
-      </div>
-
-      {/* THEME SETTINGS (Safe to keep) */}
-      <AppearanceSettings />
-
-      {/* DANGER ZONE */}
-      <Card className="border-red-900/50 bg-red-900/10">
-        <CardHeader>
-          <CardTitle className="text-red-500">Danger Zone</CardTitle>
-          <CardDescription className="text-red-200/60">
-            These actions are irreversible.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Clear All Leads & Monitors
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all
-                  your scraped leads and active monitors from the database.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearData} className="bg-red-600 hover:bg-red-700">
-                  Yes, Delete Everything
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
-    </div>
-  );
 }
