@@ -16,6 +16,7 @@ interface DataContextType {
   leads: Lead[];
   monitors: Monitor[];
   userCredits: number;
+  scansThisMonth: number;
   userEmail: string | undefined;
   addMonitor: (
     monitor: Partial<Monitor>,
@@ -37,8 +38,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [userCredits, setUserCredits] = useState(0);
+  const [scansThisMonth, setScansThisMonth] = useState(0);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const supabase = createClientComponentClient();
+
+  // --- CONFIGURATION ---
+  const COST_PER_SCAN = 100;
+  const COST_PER_UNLOCK = 1;
 
   // --- 1. FETCH DATA ---
   const fetchData = useCallback(async () => {
@@ -49,13 +55,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     setUserEmail(user.email);
 
-    // Get Credits
+    // Get Credits & Scan Count (Source of Truth)
     const { data: userData } = await supabase
       .from("users")
-      .select("credits")
+      .select("credits, scans_this_month")
       .eq("id", user.id)
       .single();
-    if (userData) setUserCredits(userData.credits);
+
+    if (userData) {
+      setUserCredits(userData.credits);
+      setScansThisMonth(userData.scans_this_month || 0);
+    }
 
     // Get Monitors
     const { data: monitorData } = await supabase
@@ -65,8 +75,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .order("created_at", { ascending: false });
     if (monitorData) setMonitors(monitorData);
 
-    // Get Leads & Unlock Status
-    // We fetch the 'user_leads' junction table to see what is unlocked
+    // Get Leads
     const { data: linkData } = await supabase
       .from("user_leads")
       .select("lead_id, is_unlocked")
@@ -74,15 +83,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     if (linkData && linkData.length > 0) {
       const leadIds = linkData.map((link) => link.lead_id);
-
-      // Fetch the actual lead details
       const { data: businessData } = await supabase
         .from("leads")
         .select("*")
         .in("id", leadIds);
 
       if (businessData) {
-        // Merge the "is_unlocked" status into the lead object
         const mergedLeads = businessData.map((biz) => {
           const link = linkData.find((l) => l.lead_id === biz.id);
           return { ...biz, is_unlocked: link?.is_unlocked || false };
@@ -98,7 +104,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [fetchData]);
 
-  // --- 2. ADD MONITOR (Via API) ---
+  // --- 2. ADD MONITOR ---
   const addMonitor = async (
     newMonitor: Partial<Monitor>,
   ): Promise<{ success: boolean; error?: string }> => {
@@ -108,36 +114,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newMonitor),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        return { success: false, error: data.error || "Failed to add monitor" };
-      }
-
+      if (!response.ok) return { success: false, error: data.error };
       setMonitors((prev) => [data.monitor, ...prev]);
       return { success: true };
     } catch (error: any) {
-      console.error("Add Monitor Error:", error);
       return { success: false, error: error.message };
     }
   };
 
-  // --- 3. START SCRAPE (With Refund Logic) ---
+  // --- 3. START SCRAPE (Diagnostics Enabled) ---
   const startScrape = async (monitor: Monitor) => {
-    const COST = 10;
-
-    if (userCredits < COST) {
+    // 1. Check Balance
+    if (userCredits < COST_PER_SCAN) {
       toast({
-        title: "Insufficient Credits",
-        description: `You need ${COST} credits. You have ${userCredits}.`,
+        title: "Insufficient Funds",
+        description: `Scan costs ${COST_PER_SCAN} credits. You have ${userCredits}.`,
         variant: "destructive",
       });
       return;
     }
 
-    // Optimistic UI Update
-    setUserCredits((prev) => prev - COST);
+    // 2. Check Monthly Limit
+    if (scansThisMonth >= 10) {
+      toast({
+        title: "Monthly Limit Reached",
+        description: `You have used all 10 scans for this month.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 3. Optimistic Updates
+    setUserCredits((prev) => prev - COST_PER_SCAN);
+    setScansThisMonth((prev) => prev + 1);
     setMonitors((prev) =>
       prev.map((m) => (m.id === monitor.id ? { ...m, status: "active" } : m)),
     );
@@ -153,17 +163,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       });
 
       const startData = await startRes.json();
-      if (!startRes.ok) throw new Error(startData.error || "Failed to start");
+
+      // If API rejected it, revert and sync
+      if (!startRes.ok) {
+        setUserCredits((prev) => prev + COST_PER_SCAN);
+        setScansThisMonth((prev) => prev - 1);
+        throw new Error(startData.error || "Failed to start");
+      }
 
       const requestId = startData.requestId;
 
-      // POLLING LOOP
+      // 4. Polling Loop
       let attempts = 0;
       const pollInterval = setInterval(async () => {
         attempts++;
-        // Timeout after ~5 minutes
+
+        // Timeout (60 attempts * 5s = 5 minutes)
         if (attempts > 60) {
           clearInterval(pollInterval);
+
+          // Force Sync (In case backend refunded silently)
+          await fetchData();
+
           setMonitors((prev) =>
             prev.map((m) =>
               m.id === monitor.id ? { ...m, status: "paused" } : m,
@@ -171,7 +192,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           );
           toast({
             title: "Timeout",
-            description: "Scrape took too long. Please try again.",
+            description: "Taking too long. Balance synced with server.",
             variant: "destructive",
           });
           return;
@@ -187,25 +208,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
           if (checkData.status === "SUCCESS") {
             clearInterval(pollInterval);
-            await fetchData(); // Reload leads
+            await fetchData(); // SYNC: Get new leads and true balance
+
             toast({
               title: "Scan Complete",
-              description: `Found ${checkData.count} new leads.`,
+              description: `Scanned ${checkData.scanned} businesses. Found ${checkData.count} opportunities.`,
             });
+
             setMonitors((prev) =>
               prev.map((m) =>
                 m.id === monitor.id ? { ...m, status: "paused" } : m,
               ),
             );
           } else if (checkData.status === "ZERO_RESULTS") {
-            // REFUND LOGIC
+            // --- DIAGNOSTIC REFUND LOGIC ---
             clearInterval(pollInterval);
-            setUserCredits((prev) => prev + 10); // Refund UI
-            toast({
-              variant: "destructive",
-              title: "No Results",
-              description: "Credits refunded. Please check your spelling.",
-            });
+            await fetchData(); // SYNC: Get refund from DB
+
+            if (checkData.reason === "MARKET_SATURATED") {
+              // CASE 1: Found businesses, but all were "Perfect"
+              toast({
+                title: "Market Too Perfect 🛡️",
+                description: `Scanned ${checkData.scanned} businesses, but ALL were highly optimized (4.5+ stars, website, verified). 100 Credits Refunded.`,
+                duration: 6000,
+              });
+            } else {
+              // CASE 2: Found nothing (Typo or Empty Location)
+              toast({
+                title: "No Results Found 🔍",
+                description:
+                  "Outscraper found 0 businesses for this keyword. Check your spelling or location. 100 Credits Refunded.",
+                variant: "destructive",
+                duration: 6000,
+              });
+            }
+
             setMonitors((prev) =>
               prev.map((m) =>
                 m.id === monitor.id ? { ...m, status: "paused" } : m,
@@ -218,7 +255,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }, 5000);
     } catch (error: any) {
       console.error(error);
-      setUserCredits((prev) => prev + COST); // Revert credits on error
+      // Revert optimistic update locally for speed
+      setUserCredits((prev) => prev + COST_PER_SCAN);
+      setScansThisMonth((prev) => prev - 1);
+
+      // Force Sync to ensure we match DB
+      await fetchData();
+
       toast({
         title: "Error",
         description: error.message,
@@ -237,27 +280,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    if (userCredits < 1) {
+    if (userCredits < COST_PER_UNLOCK) {
       toast({
         title: "Insufficient Credits",
-        description: "You need 1 credit to unlock this lead.",
+        description: "Need 1 credit.",
         variant: "destructive",
       });
       return;
     }
 
-    // Optimistic UI
-    setUserCredits((prev) => prev - 1);
+    setUserCredits((prev) => prev - COST_PER_UNLOCK);
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, is_unlocked: true } : l)),
     );
 
-    // DB Update
     await supabase
       .from("users")
-      .update({ credits: userCredits - 1 })
+      .update({ credits: userCredits - COST_PER_UNLOCK })
       .eq("id", user.id);
-
     await supabase
       .from("user_leads")
       .update({ is_unlocked: true })
@@ -265,21 +305,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .eq("lead_id", leadId);
   };
 
-  // --- 5. UNLOCK ALL LEADS (The "Bulk" Feature) ---
+  // --- 5. BULK UNLOCK ---
   const unlockAllLeads = async (leadIds: string[]) => {
-    const cost = leadIds.length;
+    const cost = leadIds.length * COST_PER_UNLOCK;
     if (cost === 0) return;
 
     if (userCredits < cost) {
       toast({
         title: "Insufficient Credits",
-        description: `You need ${cost} credits. You have ${userCredits}.`,
+        description: `Need ${cost} credits.`,
         variant: "destructive",
       });
       return;
     }
 
-    // Optimistic UI Update
     setUserCredits((prev) => prev - cost);
     setLeads((prev) =>
       prev.map((l) =>
@@ -288,50 +327,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
 
     try {
-      // API Call
       const res = await fetch("/api/extract/leads/unlock-all", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadIds }),
       });
-
-      // CTO CHECK: Detailed Error Reporting
-      if (res.status === 404) {
-        throw new Error(
-          "API Route Not Found. Missing file: api/extract/leads/unlock-all/route.ts",
-        );
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to unlock leads");
-      }
+      if (res.status === 404) throw new Error("API Route Not Found");
+      if (!res.ok) throw new Error("Failed");
 
       toast({
         title: "Leads Unlocked",
-        description: `Successfully unlocked ${cost} leads.`,
+        description: `Unlocked ${leadIds.length} leads.`,
       });
-    } catch (error: any) {
-      console.error("Unlock Error:", error);
-
-      // Revert Optimistic Update
+    } catch (error) {
       setUserCredits((prev) => prev + cost);
       setLeads((prev) =>
         prev.map((l) =>
           leadIds.includes(l.id) ? { ...l, is_unlocked: false } : l,
         ),
       );
-
       toast({
         title: "Error",
-        description: error.message || "Failed to unlock leads.",
+        description: "Failed to unlock.",
         variant: "destructive",
       });
     }
   };
 
-  // --- 6. UTILITIES ---
   const clearData = async () => {
     const {
       data: { user },
@@ -349,9 +371,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         method: "DELETE",
       });
       setMonitors((prev) => prev.filter((m) => m.id !== monitorId));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   };
 
   const updateMonitor = async (
@@ -370,6 +390,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         leads,
         monitors,
         userCredits,
+        scansThisMonth,
         userEmail,
         addMonitor,
         startScrape,

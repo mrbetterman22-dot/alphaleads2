@@ -5,6 +5,7 @@ import { addLog } from "@/lib/logger";
 
 export async function POST(req: Request) {
   const supabase = createRouteHandlerClient({ cookies });
+  const REFUND_AMOUNT = 100;
 
   try {
     const { requestId } = await req.json();
@@ -17,12 +18,13 @@ export async function POST(req: Request) {
     });
     const data = await response.json();
 
-    if (data.status === "PENDING" || data.status === "PROCESSING") {
+    if (data.status === "PENDING" || data.status === "Processing") {
       return NextResponse.json({ status: "PENDING" });
     }
 
     // 2. Process Results
-    const rawResults = data.data?.[0] || [];
+    const rawResults = data.data?.flat() || [];
+    const totalScanned = rawResults.length; // <--- METRIC 1: TOTAL FOUND
 
     const {
       data: { session },
@@ -34,20 +36,26 @@ export async function POST(req: Request) {
     const validLeads: any[] = [];
     const validPlaceIds: string[] = [];
 
-    // --- FILTER LOOP ---
+    // --- CTO LOGIC: SNIPER FILTER ---
     for (const item of rawResults) {
-      // STRICTER FILTER: Must have place_id AND a name
       if (
         !item.place_id ||
         !item.name ||
         item.business_status === "CLOSED_PERMANENTLY"
-      )
+      ) {
         continue;
+      }
 
-      // ... (Rest of your Email/Bucket Logic remains the same) ...
-      // I am condensing the middle part for brevity, assume the logic we built previously is here.
-      // Copy the logic from previous steps or just use this improved structure:
+      // SNIPER FILTER (Discard "Perfect" Businesses)
+      const isVerified = item.verified !== false;
+      const hasWebsite = !!(item.site || item.website);
+      const rating = item.rating || 0;
 
+      if (rating >= 4.5 && hasWebsite && isVerified) {
+        continue; // <--- DISCARD (Too perfect)
+      }
+
+      // ... (Email Extraction Logic) ...
       let email = null;
       const genericPrefixes = [
         "info",
@@ -59,38 +67,41 @@ export async function POST(req: Request) {
       ];
       const getEmailString = (e: any) =>
         typeof e === "string" ? e : e?.value || null;
-
       const allEmails: string[] = [];
+
       if (item.email_1) allEmails.push(item.email_1);
       if (item.email_2) allEmails.push(item.email_2);
-      if (Array.isArray(item.emails))
+      if (Array.isArray(item.emails)) {
         item.emails.forEach((e: any) => {
           const c = getEmailString(e);
           if (c) allEmails.push(c);
         });
+      }
+
       const uniqueEmails = [...new Set(allEmails)];
       const personalEmail = uniqueEmails.find(
         (e) => !genericPrefixes.includes(e.split("@")[0].toLowerCase()),
       );
       email = personalEmail || uniqueEmails[0] || null;
 
-      // Metrics
-      const oneStar = item.reviews_per_score_1 || 0;
-      const fiveStar = item.reviews_per_score_5 || 0;
-      const isVerified = item.verified !== false;
-
       // Buckets
       let bucket = "Qualified Lead";
-      let details = "Good data available.";
+      let details = "Standard Opportunity";
+      const oneStar = item.reviews_per_score_1 || 0;
+      const fiveStar = item.reviews_per_score_5 || 0;
+
       if (!isVerified) {
         bucket = "Unclaimed Business";
-        details = "Google Listing not claimed.";
-      } else if (!item.site) {
+        details = "Google Profile not claimed.";
+      } else if (!hasWebsite) {
         bucket = "Needs Website";
-        details = "No website found.";
-      } else if (oneStar > 0) {
+        details = "No website detected.";
+      } else if (rating < 4.5 || oneStar > 0) {
         bucket = "Reputation Repair";
-        details = `Has ${oneStar} 1-star reviews.`;
+        details =
+          oneStar > 0
+            ? `Has ${oneStar} 1-star reviews.`
+            : `Low rating (${rating}).`;
       }
 
       validLeads.push({
@@ -101,7 +112,7 @@ export async function POST(req: Request) {
         full_name: item.owner_name || null,
         city: item.city || "Unknown",
         phone: item.phone,
-        rating: item.rating || 0,
+        rating: rating,
         review_count: item.reviews || 0,
         reviews_per_score_1: oneStar,
         reviews_per_score_5: fiveStar,
@@ -115,12 +126,10 @@ export async function POST(req: Request) {
       validPlaceIds.push(item.place_id);
     }
 
-    // --- CTO FIX: REFUND IF VALID LEADS IS ZERO ---
-    // (Even if Outscraper sent 1 junk result, we count it as zero)
+    // 3. REFUND LOGIC (Enhanced Diagnostics)
     if (validLeads.length === 0) {
-      addLog(`⚠️ Results were empty or junk. Refunding User.`);
+      addLog(`⚠️ 0 Qualified Leads. Scanned: ${totalScanned}. Refunding.`);
 
-      // REFUND 10 CREDITS
       const { data: user } = await supabase
         .from("users")
         .select("credits")
@@ -130,41 +139,57 @@ export async function POST(req: Request) {
       if (user) {
         await supabase
           .from("users")
-          .update({ credits: user.credits + 10 })
+          .update({ credits: user.credits + REFUND_AMOUNT })
           .eq("id", userId);
       }
 
-      return NextResponse.json({ status: "ZERO_RESULTS" });
+      // DIAGNOSIS: Why was it 0?
+      let reason = "NO_DATA";
+      if (totalScanned > 0) {
+        reason = "MARKET_SATURATED"; // Found leads, but all were perfect
+      }
+
+      return NextResponse.json({
+        status: "ZERO_RESULTS",
+        scanned: totalScanned, // <--- PASS DATA TO FRONTEND
+        reason: reason,
+      });
     }
 
-    // 3. Save Valid Leads
-    if (validLeads.length > 0) {
-      addLog(`✅ Saving ${validLeads.length} valid leads...`);
+    // 4. SAVE LEADS
+    addLog(`✅ Saving ${validLeads.length} leads...`);
 
-      await supabase
-        .from("leads")
-        .upsert(validLeads, { onConflict: "place_id", ignoreDuplicates: true });
+    const { error: upsertError } = await supabase
+      .from("leads")
+      .upsert(validLeads, { onConflict: "place_id" });
 
-      const { data: dbLeads } = await supabase
-        .from("leads")
-        .select("id, place_id")
-        .in("place_id", validPlaceIds);
+    if (upsertError) throw upsertError;
 
-      const userLinks = dbLeads!.map((l) => ({
+    // Link to User
+    const { data: dbLeads } = await supabase
+      .from("leads")
+      .select("id")
+      .in("place_id", validPlaceIds);
+
+    if (dbLeads) {
+      const userLinks = dbLeads.map((l) => ({
         user_id: userId,
         lead_id: l.id,
         is_unlocked: false,
       }));
 
-      await supabase.from("user_leads").upsert(userLinks, {
-        onConflict: "user_id, lead_id",
-        ignoreDuplicates: true,
-      });
+      await supabase
+        .from("user_leads")
+        .upsert(userLinks, { onConflict: "user_id, lead_id" });
     }
 
-    return NextResponse.json({ status: "SUCCESS", count: validLeads.length });
+    return NextResponse.json({
+      status: "SUCCESS",
+      count: validLeads.length,
+      scanned: totalScanned,
+    });
   } catch (error: any) {
-    console.error("Check Error", error);
+    console.error("Check Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

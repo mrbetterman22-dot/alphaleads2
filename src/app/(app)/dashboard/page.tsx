@@ -8,6 +8,7 @@ import {
   Play,
   Loader2,
   Trash2,
+  Activity,
 } from "lucide-react";
 import { useData } from "@/context/data-provider";
 import { AddMonitorDialog } from "@/components/dashboard/add-monitor-dialog";
@@ -28,7 +29,8 @@ import {
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { leads, monitors, deleteMonitor, startScrape } = useData();
+  const { leads, monitors, deleteMonitor, startScrape, scansThisMonth } =
+    useData();
 
   // --- 1. METRIC: Total Leads ---
   const totalLeads = leads.length;
@@ -46,7 +48,17 @@ export default function DashboardPage() {
       (l.reviews_per_score_1 && l.reviews_per_score_1 > 0),
   ).length;
 
+  // --- 4. METRIC: Scans Left ---
+  const MAX_SCANS = 10;
+  const scansLeft = Math.max(0, MAX_SCANS - scansThisMonth);
+
   const stats = [
+    {
+      label: "Scans Remaining",
+      value: `${scansLeft} / ${MAX_SCANS}`,
+      color: scansLeft === 0 ? "text-red-500" : "text-[#ffe600]",
+      icon: Activity,
+    },
     {
       label: "Total Leads",
       value: totalLeads,
@@ -68,11 +80,11 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pt-14 pb-20">
+    <div className="space-y-8 max-w-7xl mx-auto pt-14 pb-20">
       {/* SECTION 1: STATS */}
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
             <div
               key={i}
@@ -161,7 +173,7 @@ export default function DashboardPage() {
                               variant="ghost"
                               size="icon"
                               className="text-[#ffe600] hover:text-[#ffe600] hover:bg-[#ffe600]/10"
-                              title="Start Scan (10 Credits)"
+                              title="Start Scan (100 Credits)"
                             >
                               <Play size={16} fill="currentColor" />
                             </Button>
@@ -178,7 +190,7 @@ export default function DashboardPage() {
                                 <br />
                                 <br />
                                 <span className="text-[#ffe600] font-bold">
-                                  Cost: 10 Credits
+                                  Cost: 100 Credits
                                 </span>
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -188,7 +200,7 @@ export default function DashboardPage() {
                                 onClick={() => startScrape(m)}
                                 className="!bg-[#ffe600] !text-black hover:!bg-[#ffe600]/90 font-bold border-none"
                               >
-                                Confirm (-10 Credits)
+                                Confirm (-100 Credits)
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -252,7 +264,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* CONSOLE (CTO FIX: Removed border-t and label) */}
+      {/* CONSOLE */}
       <div className="space-y-4 pt-4">
         <ConsoleWindow />
       </div>
