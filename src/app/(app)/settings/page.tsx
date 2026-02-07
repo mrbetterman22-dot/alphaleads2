@@ -45,10 +45,8 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* THEME SETTINGS */}
       <AppearanceSettings />
 
-      {/* DANGER ZONE */}
       <Card className="border-red-900/50 bg-red-900/10">
         <CardHeader>
           <CardTitle className="text-red-500">Danger Zone</CardTitle>
